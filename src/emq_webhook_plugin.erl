@@ -32,9 +32,7 @@
 -export([init/1, check/3, check_acl/2, reload_acl/1, description/0]).
 
 init(Opts) ->
-  lager:start(),
-  lager:alert("emq_webhook_plugin [ Started ]"),
-  mod_http:start(),
+  ?PRINT_MSG("emq_webhook_plugin started"),
   {ok, Opts}.
 
 check(#mqtt_client{client_id = ClientId, username = Username}, Password, _Opts) ->
