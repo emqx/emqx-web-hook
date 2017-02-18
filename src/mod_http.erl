@@ -22,18 +22,23 @@
 %% SOFTWARE.
 %%%--------------------------------------------------------------------------------
 
--module(emq_webhook_plugin_sup).
+-module(mod_http).
 
--behaviour(supervisor).
+-export([start/0, send/2, stop/0]).
 
--export([start_link/0]).
+start() ->
+  inets:start(),
+  ssl:start(),
+  ok.
 
--export([init/1]).
+send(Url, Params) ->
+  Method = post,
+  Header = [],
+  Type = "application/json",
+  httpc:request(Method, {Url, Header, Type, Params}, [], []),
+  ok.
 
--define(SERVER, ?MODULE).
-
-start_link() ->
-  supervisor:start_link({local, ?SERVER}, ?MODULE, []).
-
-init([]) ->
-  {ok, {{one_for_all, 0, 1}, []}}.
+stop() ->
+  inets:stop(),
+  ssl:stop(),
+  ok.
