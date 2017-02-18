@@ -49,7 +49,7 @@ load(Env) ->
 
 on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId}, _Env) ->
   Params = "{\"action\": \"client_connected\"," ++ "\"clientId\": \"" ++ ClientId ++ "\"}",
-  mod_http:send(parse_settings("webhook.url"), list_to_binary(Params)),
+  mod_http:send(parse_settings("url"), list_to_binary(Params)),
   {ok, Client}.
 
 on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId}, _Env) ->
