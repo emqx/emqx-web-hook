@@ -48,7 +48,7 @@ load(Env) ->
   emqttd:hook('message.acked', fun ?MODULE:on_message_acked/4, [Env]).
 
 on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId}, _Env) ->
-  Params = "{\"action\": \"client_connected\"," ++ "\"clientId\": \"" ++ ClientId ++ "\"}",
+  Params = "{\"action\": \"client_connected\"," ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\"}",
   mod_http:send(parse_settings("url"), list_to_binary(Params)),
   {ok, Client}.
 
