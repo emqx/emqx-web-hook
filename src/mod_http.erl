@@ -32,9 +32,12 @@ start() ->
   ok.
 
 send(Url, Params) ->
+  io:fwrite("Sending http request : ~p~n~p~n", [Url, Params]),
+
   Method = post,
   Header = [],
   Type = "application/json",
+  ssl:start(),
   httpc:request(Method, {Url, Header, Type, Params}, [], []),
   ok.
 

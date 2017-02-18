@@ -30,15 +30,10 @@
 
 start(_StartType, _StartArgs) ->
   {ok, Sup} = emq_webhook_plugin_sup:start_link(),
-  ok = emqttd_access_control:register_mod(auth, emq_webhook_plugin, []),
-  ok = emqttd_access_control:register_mod(acl, emq_webhook_plugin, []),
+  emq_webhook_plugin:load(application:get_all_env()),
   mod_http:start(),
-  mod_webhook:load(application:get_all_env()),
   {ok, Sup}.
 
 stop(_State) ->
-  ok = emqttd_access_control:unregister_mod(auth, emq_webhook_plugin),
-  ok = emqttd_access_control:unregister_mod(acl, emq_webhook_plugin),
-  mod_http:stop(),
-  mod_webhook:unload(),
+  emq_webhook_plugin:unload(),
   ok.
