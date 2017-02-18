@@ -10,3 +10,5 @@ COVER = true
 include erlang.mk
 
 app:: rebar.config
+app.config::
+	etc/emq_webhook_plugin.conf
