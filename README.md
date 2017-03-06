@@ -1,3 +1,4 @@
+
 emq_webhook_plugin
 =====
 
@@ -7,11 +8,12 @@ EMQ broker plugin to catch broker hooks through webhook.<br>
 
 Setup
 -----
+
 ##### In Makefile,
 
 DEPS += emq_webhook_plugin
 
-dep_emq_webhook_plugin = git https://github.com/CodersGarage/emq_webhook_plugin master
+dep_emq_webhook_plugin = git https://github.com/emqtt/emq-webhook-plugin master
 
 ##### In relx.config
 
@@ -149,9 +151,12 @@ API
 
 LICENSE
 -------
+
 Copyright © Coders Garage Technologies Ltd<br/>
 Distributed under [MIT](https://github.com/CodersGarage/emq_webhook_plugin/blob/master/LICENSE) license.
 
 Contributors
 ------
+
 * [Sakib Sami](https://github.com/s4kibs4mi)
+
