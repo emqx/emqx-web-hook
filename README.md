@@ -1,3 +1,4 @@
+
 emq_webhook_plugin
 =====
 
@@ -7,11 +8,12 @@ EMQ broker plugin to catch broker hooks through webhook.<br>
 
 Setup
 -----
+
 ##### In Makefile,
 
 DEPS += emq_webhook_plugin
 
-dep_emq_webhook_plugin = git https://github.com/CodersGarage/emq_webhook_plugin master
+dep_emq_webhook_plugin = git https://github.com/emqtt/emq-webhook-plugin master
 
 ##### In relx.config
 
@@ -31,7 +33,7 @@ dep_emq_webhook_plugin = git https://github.com/CodersGarage/emq_webhook_plugin 
 
 API
 ----
-* #### client.connected
+* client.connected
 ```json
 {
   "api_key": "123456",
@@ -40,7 +42,7 @@ API
 }
 ```
 
-* #### client.disconnected
+* client.disconnected
 ```json
 {
   "api_key": "123456",
@@ -49,7 +51,7 @@ API
 }
 ```
 
-* #### client.subscribe
+* client.subscribe
 ```json
 {
   "api_key": "123456",
@@ -59,7 +61,7 @@ API
 }
 ```
 
-* #### client.unsubscribe
+* client.unsubscribe
 ```json
 {
   "api_key": "123456",
@@ -69,7 +71,7 @@ API
 }
 ```
 
-* #### session.created
+* session.created
 ```json
 {
   "api_key": "123456",
@@ -79,7 +81,7 @@ API
 }
 ```
 
-* #### session.subscribed
+* session.subscribed
 ```json
 {
   "api_key": "123456",
@@ -90,7 +92,7 @@ API
 }
 ```
 
-* #### session.unsubscribed
+* session.unsubscribed
 ```json
 {
   "api_key": "123456",
@@ -101,7 +103,7 @@ API
 }
 ```
 
-* #### session.terminated
+* session.terminated
 ```json
 {
   "api_key": "123456",
@@ -112,7 +114,7 @@ API
 }
 ```
 
-* #### message.publish
+* message.publish
 ```json
 {
   "api_key": "123456",
@@ -123,7 +125,7 @@ API
 }
 ```
 
-* #### message.delivered
+* message.delivered
 ```json
 {
   "api_key": "123456",
@@ -135,7 +137,7 @@ API
 }
 ```
 
-* #### message.acknowledged
+* message.acknowledged
 ```json
 {
   "api_key": "123456",
@@ -149,9 +151,12 @@ API
 
 LICENSE
 -------
+
 Copyright © Coders Garage<br/>
 Distributed under [MIT](https://github.com/emqtt/emq_webhook_plugin/blob/master/LICENSE) license.
 
 Contributors
 ------
+
 * [Sakib Sami](https://github.com/s4kibs4mi)
+
