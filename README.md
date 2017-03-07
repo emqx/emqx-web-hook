@@ -152,8 +152,8 @@ API
 LICENSE
 -------
 
-Copyright © Coders Garage Technologies Ltd<br/>
-Distributed under [MIT](https://github.com/CodersGarage/emq_webhook_plugin/blob/master/LICENSE) license.
+Copyright © Coders Garage<br/>
+Distributed under [MIT](https://github.com/emqtt/emq_webhook_plugin/blob/master/LICENSE) license.
 
 Contributors
 ------
