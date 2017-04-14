@@ -24,22 +24,31 @@
 
 -module(mod_http).
 
--export([start/0, send/2, stop/0]).
+-export([start/0, request/2, stop/0]).
 
 start() ->
   inets:start(),
   ssl:start(),
   ok.
 
-send(Url, Params) ->
-  io:fwrite("Sending http request : ~p~n~p~n", [Url, Params]),
-
+request(Url, Params) ->
+  lager:info("sending http request: url=~s~n,params=~p~n", [Url, Params]),
   Method = post,
   Header = [],
   Type = "application/json",
   ssl:start(),
-  httpc:request(Method, {Url, Header, Type, Params}, [], []),
+  response(httpc:request(Method, {Url, Header, Type, Params}, [], [])),
   ok.
+
+response({ok, {{_, Code, _}, _Headers, Body}}) ->
+  if
+    Code > 399, Code < 600 -> 
+      lager:error("status=~B, error=~s", [Code, Body]);
+    true ->
+      lager:info("status=~B", [Code])
+  end;
+response({error, Error}) ->
+  lager:error("error=~p", [Error]).
 
 stop() ->
   inets:stop(),

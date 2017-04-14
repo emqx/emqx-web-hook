@@ -49,79 +49,114 @@ load(Env) ->
   emqttd:hook('message.delivered', fun ?MODULE:on_message_delivered/4, [Env]),
   emqttd:hook('message.acked', fun ?MODULE:on_message_acked/4, [Env]).
 
-on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId}, _Env) ->
-  Params = "{\"action\": \"client_connected\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+on_client_connected(_ConnAck, Client = #mqtt_client{client_id = ClientId,
+                                                    username  = Username,
+                                                    peername  = {IpAddr, _}}, _Env) ->
+  Params = mochijson2:encode([{event, "client_connected"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {ip_address, list_to_binary(emqttd_net:ntoa(IpAddr))},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, Client}.
 
-on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId}, _Env) ->
-  Params = "{\"action\": \"client_disconnected\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId,
+                                                      username  = Username}, _Env) ->
+  Params = mochijson2:encode([{event, "client_disconnected"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {reason, Reason},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   ok.
 
 on_client_subscribe(ClientId, Username, TopicTable, _Env) ->
-  Params = "{\"action\": \"client_subscribe\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "client_subscribe"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topics, TopicTable},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, TopicTable}.
 
 on_client_unsubscribe(ClientId, Username, TopicTable, _Env) ->
-  Params = "{\"action\": \"client_unsubscribe\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "client_unsubscribe"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topics, TopicTable},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, TopicTable}.
 
 on_session_created(ClientId, Username, _Env) ->
-  Params = "{\"action\": \"session_created\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "session_created"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   ok.
 
 on_session_subscribed(ClientId, Username, {Topic, Opts}, _Env) ->
-  Params = "{\"action\": \"session_subscribed\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"topic\": \"" ++ binary_to_list(Topic) ++ "\",
-  \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "session_subscribed"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topic, Topic},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, {Topic, Opts}}.
 
-on_session_unsubscribed(ClientId, Username, {Topic, Opts}, _Env) ->
-  Params = "{\"action\": \"session_unsubscribed\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"topic\": \"" ++ binary_to_list(Topic) ++ "\",
-  \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, _Env) ->
+  Params = mochijson2:encode([{event, "session_unsubscribed"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topic, Topic},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   ok.
 
 on_session_terminated(ClientId, Username, Reason, _Env) ->
-  Params = "{\"action\": \"session_terminated\", " ++ "\"clientId\": \"" ++ binary_to_list(ClientId) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"reason\": \"" ++ binary_to_list(Reason) ++ "\",
-  \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "session_terminated"},
+                              {client_id, ClientId},
+                              {username, Username},
+                              {Reason, Reason},
+                              {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   ok.
 
 on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
   {ok, Message};
 
 on_message_publish(Message, _Env) ->
-  Params = "{\"action\": \"message_publish\", " ++ "\"topic\": \"" ++ binary_to_list(Message#mqtt_message.topic) ++ "\",
-  \"message\": \"" ++ binary_to_list(Message#mqtt_message.payload) ++ "\", \"from\": \"" ++ tuple_to_list(Message#mqtt_message.from) ++ "\",
-  \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "message_publish"},
+                            {topic, Message#mqtt_message.topic},
+                            {message, Message#mqtt_message.payload},
+                            {from, Message#mqtt_message.from},
+                            {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, Message}.
 
 on_message_delivered(ClientId, Username, Message, _Env) ->
-  Params = "{\"action\": \"message_delivered\", " ++ "\"topic\": \"" ++ binary_to_list(Message#mqtt_message.topic) ++ "\",
-  \"message\": \"" ++ binary_to_list(Message#mqtt_message.payload) ++ "\", \"from\": \"" ++ binary_to_list(Message#mqtt_message.from) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "message_delivered"},
+                            {client_id, ClientId},
+                            {username, Username},
+                            {topic, Message#mqtt_message.topic},
+                            {message, Message#mqtt_message.payload},
+                            {from, Message#mqtt_message.from},
+                            {from, Message#mqtt_message.from},
+                            {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, Message}.
 
 on_message_acked(ClientId, Username, Message, _Env) ->
-  Params = "{\"action\": \"message_acknowledged\", " ++ "\"topic\": \"" ++ binary_to_list(Message#mqtt_message.topic) ++ "\",
-  \"message\": \"" ++ binary_to_list(Message#mqtt_message.payload) ++ "\", \"from\": \"" ++ binary_to_list(Message#mqtt_message.from) ++ "\",
-  \"username\": \"" ++ binary_to_list(Username) ++ "\", \"api_key\": \"" ++ get_config(?API_KEY, _Env) ++ "\"}",
-  mod_http:send(get_config(?API_URL, _Env), list_to_binary(Params)),
+  Params = mochijson2:encode([{event, "message_acked"},
+                            {client_id, ClientId},
+                            {username, Username},
+                            {topic, Message#mqtt_message.topic},
+                            {message, Message#mqtt_message.payload},
+                            {from, Message#mqtt_message.from},
+                            {from, Message#mqtt_message.from},
+                            {api_key, get_config(?API_KEY, _Env)}]),
+  mod_http:request(get_config(?API_URL, _Env), Params),
   {ok, Message}.
 
 get_config(Lookup, Configs) ->
