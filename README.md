@@ -1,6 +1,5 @@
 
-emq_webhook_plugin
-=====
+# emq_web_hook
 
 EMQ broker plugin to catch broker hooks through webhook.<br>
 [http://emqtt.io](http://emqtt.io)<br>
