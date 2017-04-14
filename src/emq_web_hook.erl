@@ -22,11 +22,11 @@
 %% SOFTWARE.
 %%%--------------------------------------------------------------------------------
 
--module(emq_webhook_plugin).
+-module(emq_web_hook).
 
 -include_lib("emqttd/include/emqttd.hrl").
 
--define(APP, emq_webhook_plugin).
+-define(APP, emq_web_hook).
 -define(API_URL, "api_url").
 -define(API_KEY, "api_key").
 
