@@ -52,111 +52,109 @@ load(Env) ->
 on_client_connected(_ConnAck, Client = #mqtt_client{client_id = ClientId,
                                                     username  = Username,
                                                     peername  = {IpAddr, _}}, _Env) ->
-  Params = mochijson2:encode([{event, "client_connected"},
+  Params = mochijson2:encode([{event, <<"client_connected">>},
                               {client_id, ClientId},
                               {username, Username},
                               {ip_address, list_to_binary(emqttd_net:ntoa(IpAddr))},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Client}.
 
 on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId,
                                                       username  = Username}, _Env) ->
-  Params = mochijson2:encode([{event, "client_disconnected"},
+  Params = mochijson2:encode([{event, <<"client_disconnected">>},
                               {client_id, ClientId},
                               {username, Username},
                               {reason, Reason},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   ok.
 
 on_client_subscribe(ClientId, Username, TopicTable, _Env) ->
-  Params = mochijson2:encode([{event, "client_subscribe"},
+  Params = mochijson2:encode([{event, <<"client_subscribe">>},
                               {client_id, ClientId},
                               {username, Username},
                               {topics, TopicTable},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, TopicTable}.
 
 on_client_unsubscribe(ClientId, Username, TopicTable, _Env) ->
-  Params = mochijson2:encode([{event, "client_unsubscribe"},
+  Params = mochijson2:encode([{event, <<"client_unsubscribe">>},
                               {client_id, ClientId},
                               {username, Username},
                               {topics, TopicTable},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, TopicTable}.
 
 on_session_created(ClientId, Username, _Env) ->
-  Params = mochijson2:encode([{event, "session_created"},
+  Params = mochijson2:encode([{event, <<"session_created">>},
                               {client_id, ClientId},
                               {username, Username},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   ok.
 
 on_session_subscribed(ClientId, Username, {Topic, Opts}, _Env) ->
-  Params = mochijson2:encode([{event, "session_subscribed"},
+  Params = mochijson2:encode([{event, <<"session_subscribed">>},
                               {client_id, ClientId},
                               {username, Username},
                               {topic, Topic},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, {Topic, Opts}}.
 
 on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, _Env) ->
-  Params = mochijson2:encode([{event, "session_unsubscribed"},
+  Params = mochijson2:encode([{event, <<"session_unsubscribed">>},
                               {client_id, ClientId},
                               {username, Username},
                               {topic, Topic},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   ok.
 
 on_session_terminated(ClientId, Username, Reason, _Env) ->
-  Params = mochijson2:encode([{event, "session_terminated"},
+  Params = mochijson2:encode([{event, <<"session_terminated">>},
                               {client_id, ClientId},
                               {username, Username},
                               {Reason, Reason},
-                              {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   ok.
 
 on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
   {ok, Message};
 
 on_message_publish(Message, _Env) ->
-  Params = mochijson2:encode([{event, "message_publish"},
+  Params = mochijson2:encode([{event, <<"message_publish">>},
                             {topic, Message#mqtt_message.topic},
                             {message, Message#mqtt_message.payload},
                             {from, Message#mqtt_message.from},
-                            {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                            {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Message}.
 
 on_message_delivered(ClientId, Username, Message, _Env) ->
-  Params = mochijson2:encode([{event, "message_delivered"},
+  Params = mochijson2:encode([{event, <<"message_delivered">>},
                             {client_id, ClientId},
                             {username, Username},
                             {topic, Message#mqtt_message.topic},
                             {message, Message#mqtt_message.payload},
                             {from, Message#mqtt_message.from},
-                            {from, Message#mqtt_message.from},
-                            {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                            {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Message}.
 
 on_message_acked(ClientId, Username, Message, _Env) ->
-  Params = mochijson2:encode([{event, "message_acked"},
+  Params = mochijson2:encode([{event, <<"message_acked">>},
                             {client_id, ClientId},
                             {username, Username},
                             {topic, Message#mqtt_message.topic},
                             {message, Message#mqtt_message.payload},
                             {from, Message#mqtt_message.from},
-                            {from, Message#mqtt_message.from},
-                            {api_key, get_config(?API_KEY, _Env)}]),
-  mod_http:request(get_config(?API_URL, _Env), Params),
+                            {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+  request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Message}.
 
 get_config(Lookup, Configs) ->
@@ -172,6 +170,21 @@ get_config(Lookup, Configs) ->
           get_config(Lookup, ConfigTail)
       end
   end.
+
+request(Url, Params) ->
+  lager:info("sending http request: url=~s~nparams=~s~n", [Url, Params]),
+  response(httpc:request(post, {Url, [], "application/json", Params}, [], [])),
+  ok.
+
+response({ok, {{_, Code, _}, _Headers, Body}}) ->
+  if
+    Code > 399, Code < 600 -> 
+      lager:error("status=~B, error=~s", [Code, Body]);
+    true ->
+      lager:info("status=~B", [Code])
+  end;
+response({error, Error}) ->
+  lager:error("error=~p", [Error]).
 
 unload() ->
   emqttd:unhook('client.connected', fun ?MODULE:on_client_connected/3),

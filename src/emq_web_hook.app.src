@@ -1,5 +1,5 @@
 {application, emq_web_hook,
-  [{description, "EMQ Webhook Plugin"},
+  [{description, "EMQ web hook"},
     {vsn, "0.1"},
     {registered, []},
     {mod, {emq_web_hook_app, []}},

@@ -31,7 +31,6 @@
 start(_StartType, _StartArgs) ->
   {ok, Sup} = emq_web_hook_sup:start_link(),
   emq_web_hook:load(application:get_all_env()),
-  mod_http:start(),
   {ok, Sup}.
 
 stop(_State) ->
