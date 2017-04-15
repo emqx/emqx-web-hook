@@ -22,18 +22,17 @@
 %% SOFTWARE.
 %%%--------------------------------------------------------------------------------
 
--module(emq_webhook_plugin_sup).
+-module(emq_web_hook_app).
 
--behaviour(supervisor).
+-behaviour(application).
 
--export([start_link/0]).
+-export([start/2, stop/1]).
 
--export([init/1]).
+start(_StartType, _StartArgs) ->
+  {ok, Sup} = emq_web_hook_sup:start_link(),
+  emq_web_hook:load(application:get_all_env()),
+  {ok, Sup}.
 
--define(SERVER, ?MODULE).
-
-start_link() ->
-  supervisor:start_link({local, ?SERVER}, ?MODULE, []).
-
-init([]) ->
-  {ok, {{one_for_all, 0, 1}, []}}.
+stop(_State) ->
+  emq_web_hook:unload(),
+  ok.

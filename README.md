@@ -10,19 +10,19 @@ Setup
 
 ##### In Makefile,
 
-DEPS += emq_webhook_plugin
+DEPS += emq_web_hook
 
-dep_emq_webhook_plugin = git https://github.com/emqtt/emq-webhook-plugin master
+dep_emq_web_hook = git https://github.com/emqtt/emq-web-hook master
 
 ##### In relx.config
 
-{emq_webhook_plugin, load}
+{emq_web_hook, load}
 
-##### In _rel/emqttd/etc/plugins/emq_webhook_plugin.config
+##### In _rel/emqttd/etc/plugins/emq_web_hook.config
 ```
 [
   {
-    emq_webhook_plugin, [
+    emq_web_hook, [
     {"api_url", "http://127.0.0.1/hooks"},
     {"api_key", "123456"}
   ]
@@ -152,7 +152,7 @@ LICENSE
 -------
 
 Copyright © Coders Garage<br/>
-Distributed under [MIT](https://github.com/emqtt/emq_webhook_plugin/blob/master/LICENSE) license.
+Distributed under [MIT](https://github.com/emqtt/emq_web_hook/blob/master/LICENSE) license.
 
 Contributors
 ------

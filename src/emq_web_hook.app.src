@@ -1,8 +1,8 @@
-{application, emq_webhook_plugin,
-  [{description, "EMQ Webhook Plugin"},
+{application, emq_web_hook,
+  [{description, "EMQ web hook"},
     {vsn, "0.1"},
     {registered, []},
-    {mod, {emq_webhook_plugin_app, []}},
+    {mod, {emq_web_hook_app, []}},
     {applications,
       [kernel,
         stdlib
