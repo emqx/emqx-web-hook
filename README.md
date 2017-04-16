@@ -8,15 +8,18 @@ EMQ broker plugin to catch broker hooks through webhook.<br>
 Setup
 -----
 
-##### In Makefile,
+##### In Makefile
 
+```
 DEPS += emq_web_hook
-
 dep_emq_web_hook = git https://github.com/emqtt/emq-web-hook master
+```
 
 ##### In relx.config
 
+```
 {emq_web_hook, load}
+```
 
 ##### In _rel/emqttd/etc/plugins/emq_web_hook.config
 ```

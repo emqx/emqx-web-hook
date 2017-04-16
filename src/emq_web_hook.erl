@@ -49,9 +49,11 @@ load(Env) ->
   emqttd:hook('message.delivered', fun ?MODULE:on_message_delivered/4, [Env]),
   emqttd:hook('message.acked', fun ?MODULE:on_message_acked/4, [Env]).
 
-on_client_connected(_ConnAck, Client = #mqtt_client{client_id = ClientId,
-                                                    username  = Username,
-                                                    peername  = {IpAddr, _}}, _Env) ->
+on_client_connected(_ConnAck, Client = #mqtt_client{
+                                client_id = ClientId,
+                                username = Username,
+                                peername = {IpAddr, _}},
+                              _Env) ->
   Params = mochijson2:encode([{event, <<"client_connected">>},
                               {client_id, ClientId},
                               {username, Username},
@@ -60,8 +62,10 @@ on_client_connected(_ConnAck, Client = #mqtt_client{client_id = ClientId,
   request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Client}.
 
-on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId,
-                                                      username  = Username}, _Env) ->
+on_client_disconnected(Reason, _Client = #mqtt_client{
+                                  client_id = ClientId,
+                                  username = Username},
+                                _Env) ->
   Params = mochijson2:encode([{event, <<"client_disconnected">>},
                               {client_id, ClientId},
                               {username, Username},
@@ -126,34 +130,43 @@ on_session_terminated(ClientId, Username, Reason, _Env) ->
 on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
   {ok, Message};
 
-on_message_publish(Message, _Env) ->
+on_message_publish(Message = #mqtt_message{
+                    from = {ClientId, Username},
+                    topic = Topic,
+                    payload = Payload},
+                  _Env) ->
   Params = mochijson2:encode([{event, <<"message_publish">>},
-                            {topic, Message#mqtt_message.topic},
-                            {message, Message#mqtt_message.payload},
-                            {from, Message#mqtt_message.from},
-                            {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topic, Topic},
+                              {message, Payload},
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
   request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Message}.
 
-on_message_delivered(ClientId, Username, Message, _Env) ->
+on_message_delivered(ClientId, Username, Message = #mqtt_message{
+                                          topic = Topic,
+                                          payload = Payload},
+                                        _Env) ->
   Params = mochijson2:encode([{event, <<"message_delivered">>},
-                            {client_id, ClientId},
-                            {username, Username},
-                            {topic, Message#mqtt_message.topic},
-                            {message, Message#mqtt_message.payload},
-                            {from, Message#mqtt_message.from},
-                            {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topic, Topic},
+                              {message, Payload},
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
   request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Message}.
 
-on_message_acked(ClientId, Username, Message, _Env) ->
+on_message_acked(ClientId, Username, Message = #mqtt_message{
+                                          topic = Topic,
+                                          payload = Payload},
+                                        _Env) ->
   Params = mochijson2:encode([{event, <<"message_acked">>},
-                            {client_id, ClientId},
-                            {username, Username},
-                            {topic, Message#mqtt_message.topic},
-                            {message, Message#mqtt_message.payload},
-                            {from, Message#mqtt_message.from},
-                            {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
+                              {client_id, ClientId},
+                              {username, Username},
+                              {topic, Topic},
+                              {message, Payload},
+                              {api_key, list_to_binary(get_config(?API_KEY, _Env))}]),
   request(get_config(?API_URL, _Env), list_to_binary(Params)),
   {ok, Message}.
 
