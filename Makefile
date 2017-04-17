@@ -1,6 +1,6 @@
 PROJECT = emq_web_hook
 PROJECT_DESCRIPTION = EMQ Webhook Plugin
-PROJECT_VERSION = 0.1
+PROJECT_VERSION = 2.2
 
 BUILD_DEPS = emqttd
 dep_emqttd = git https://github.com/emqtt/emqttd master
