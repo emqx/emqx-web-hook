@@ -3,7 +3,7 @@ PROJECT_DESCRIPTION = EMQ Webhook Plugin
 PROJECT_VERSION = 2.2
 
 BUILD_DEPS = emqttd
-dep_emqttd = git https://github.com/emqtt/emqttd master
+dep_emqttd = git https://github.com/emqtt/emqttd emq22
 
 COVER = true
 
