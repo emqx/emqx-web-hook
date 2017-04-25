@@ -223,7 +223,7 @@ send_http_request(Params) ->
     Method = post,
     Header = [],
     Type = "application/json",
-    io:format("--~p~n", [Params1]),
+    lager:debug("Url:~p, params:~p", [Url, Params1]),
     httpc:request(Method, {Url, Header, Type, Params1}, [], []).
 
 parse_rule(Rules) ->
