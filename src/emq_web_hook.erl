@@ -224,7 +224,7 @@ send_http_request(Params) ->
     Header = [],
     Type = "application/json",
     lager:debug("Url:~p, params:~p", [Url, Params1]),
-    httpc:request(Method, {Url, Header, Type, Params1}, [], []).
+    httpc:request(Method, {Url, Header, Type, Params1}, [], [{sync, false}]).
 
 parse_rule(Rules) ->
     parse_rule(Rules, []).
