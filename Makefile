@@ -5,6 +5,14 @@ PROJECT_VERSION = 2.2
 BUILD_DEPS = emqttd
 dep_emqttd = git https://github.com/emqtt/emqttd emq22
 
+ERLC_OPTS += +'{parse_transform, lager_transform}'
+
+TEST_DEPS = emqttc
+dep_emqttc = git https://github.com/emqtt/emqttc
+
+TEST_ERLC_OPTS += +debug_info
+TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
+
 COVER = true
 
 include erlang.mk
