@@ -226,8 +226,7 @@ send_http_request(Params) ->
     lager:debug("Url:~p, params:~p", [Url, Params1]),
     case httpc:request(Method, {Url, Header, Type, Params1}, [{timeout, 5000}], [])of
         {ok, _} -> ok;
-        {error, Reason} ->
-            throw({timeout, Reason})
+        {error, Reason} -> throw({timeout, Reason})
     end.
 
 parse_rule(Rules) ->
