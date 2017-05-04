@@ -14,3 +14,11 @@ erl_crash.dump
 logs
 _build
 .idea
+data
+.DS_Store
+.erlang.mk/
+cover
+ct.coverdata
+deps
+eunit.coverdata
+test/ct.cover.spec
