@@ -4,7 +4,7 @@ emq_web_hook
 
 EMQ broker plugin to catch broker hooks through webhook.<br>
 [http://emqtt.io](http://emqtt.io)<br>
-[http://codersgarage.com](http://codersgarage.com)
+[https://www.sakib.ninja](https://www.sakib.ninja)
 
 Setup
 -----
@@ -173,8 +173,15 @@ License
 
 Apache License Version 2.0
 
-Contributors
+Author
 ------
 
 * [Sakib Sami](https://github.com/s4kibs4mi)
 
+Contributors
+------
+
+* [turtleDeng](https://github.com/turtleDeng)
+* [vishr](https://github.com/vishr)
+* [emqplus](https://github.com/emqplus)
+* [huangdan](https://github.com/huangdan)
