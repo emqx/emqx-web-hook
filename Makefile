@@ -5,6 +5,7 @@ PROJECT_VERSION = 2.2
 BUILD_DEPS = emqttd
 dep_emqttd = git https://github.com/emqtt/emqttd master
 
+ERLC_OPTS += +debug_info
 ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 TEST_DEPS = emqttc
