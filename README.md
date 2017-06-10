@@ -105,7 +105,7 @@ API
 * session.unsubscribed
 ```json
 {
-    "action":"client_unsubscribe",
+    "action":"session_unsubscribe",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world"
