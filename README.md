@@ -92,7 +92,7 @@ API
 * session.subscribed
 ```json
 {
-    "action":"session_subscribe",
+    "action":"session_subscribed",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world",
@@ -105,7 +105,7 @@ API
 * session.unsubscribed
 ```json
 {
-    "action":"session_unsubscribe",
+    "action":"session_unsubscribed",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world"
