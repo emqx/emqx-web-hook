@@ -42,7 +42,7 @@ API
 * client.connected
 ```json
 {
-    "action":"session_created",
+    "action":"client_connected",
     "client_id":"C_1492410235117",
     "conn_ack":0
 }
@@ -73,7 +73,7 @@ API
 * client.unsubscribe
 ```json
 {
-    "action":"client_subscribe",
+    "action":"client_unsubscribe",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world"
@@ -92,7 +92,7 @@ API
 * session.subscribed
 ```json
 {
-    "action":"client_subscribe",
+    "action":"session_subscribe",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world",
@@ -105,7 +105,7 @@ API
 * session.unsubscribed
 ```json
 {
-    "action":"client_subscribe",
+    "action":"client_unsubscribe",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world"
