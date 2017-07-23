@@ -3,7 +3,7 @@ PROJECT_DESCRIPTION = EMQ Webhook Plugin
 PROJECT_VERSION = 2.3
 
 BUILD_DEPS = emqttd
-dep_emqttd = git https://github.com/emqtt/emqttd emq24
+dep_emqttd = git https://github.com/emqtt/emqttd master
 
 ERLC_OPTS += +debug_info
 ERLC_OPTS += +'{parse_transform, lager_transform}'
