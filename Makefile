@@ -3,7 +3,7 @@ PROJECT_DESCRIPTION = EMQ Webhook Plugin
 PROJECT_VERSION = 2.3
 
 DEPS = clique
-dep_clique  = git https://github.com/turtleDeng/clique
+dep_clique  = git https://github.com/emqtt/clique
 
 BUILD_DEPS = emqttd
 dep_emqttd = git https://github.com/emqtt/emqttd develop
