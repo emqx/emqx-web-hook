@@ -143,8 +143,7 @@ on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, {Filter}) ->
 
 on_session_terminated(ClientId, Username, {shutdown, Reason}, Env) when is_atom(Reason) ->
     on_session_terminated(ClientId, Username, Reason, Env);
-on_session_terminated(ClientId, Username, Reason, _Env)
-    when is_atom(Reason) ->
+on_session_terminated(ClientId, Username, Reason, _Env) when is_atom(Reason) ->
     Params = [{action, session_terminated},
               {client_id, ClientId},
               {username, Username},
