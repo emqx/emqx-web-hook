@@ -21,10 +21,12 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
-  {ok, Sup} = emq_web_hook_sup:start_link(),
-  emq_web_hook:load(),
-  {ok, Sup}.
+    {ok, Sup} = emq_web_hook_sup:start_link(),
+    emq_web_hook:load(),
+    emq_web_hook_config:register(),
+    {ok, Sup}.
 
 stop(_State) ->
-  emq_web_hook:unload(),
-  ok.
+    emq_web_hook:unload(),
+    emq_web_hook_config:unregister(),
+    ok.
