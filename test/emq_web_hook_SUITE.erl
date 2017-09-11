@@ -18,18 +18,18 @@
 -define(HOOK_LOOKUP(H),         emqttd_hooks:lookup(list_to_atom(H))).
 
 all() -> 
-    [{group, emq_web_hook},
-     {group, emq_web_hook_actions}].
+    [{group, emq_web_hook_actions},
+     {group, emq_web_hook}
+     ].
 
 groups() -> 
-    [{emq_web_hook, [sequence], [reload, change_config]},
+    [{emq_web_hook, [sequence], [reload, server_config, change_config]},
      {emq_web_hook_actions, [sequence], [case1]}
     ].
 
 init_per_suite(Config) ->
     DataDir = proplists:get_value(data_dir, Config),
-    Apps = [start_apps(App, DataDir) || App <- [emqttd, emq_web_hook]],
-    ct:log("Apps:~p~n", [Apps]),
+    [start_apps(App, DataDir) || App <- [emqttd, emq_web_hook]],
     start_http_(),
     Config.
 
@@ -50,6 +50,11 @@ reload(_Config) ->
                                        string:str(erlang:fun_to_list(Fun), hooks_(HookName)) > 0)
                   end, Rules).
 
+server_config(_) ->
+    emqttd_cli_config:run(["config", "set", "web.hook.api.url=https://example.com", "--app=emq_web_hook"]),
+    {ok, Url} =  application:get_env(emq_web_hook, url),
+    ?assertEqual("https://example.com", Url).
+
 change_config(_Config) ->
     {ok, Rules} = application:get_env(emq_web_hook, rules),
     emq_web_hook:unload(),
@@ -63,6 +68,7 @@ change_config(_Config) ->
 
 case1(_Config) ->
     {ok, C} = emqttc:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    timer:sleep(1000),
     emqttc:subscribe(C, <<"TopicA">>, qos2),
     timer:sleep(1000),
     emqttc:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
