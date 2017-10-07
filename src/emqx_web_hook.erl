@@ -14,11 +14,11 @@
 %% limitations under the License.
 %%--------------------------------------------------------------------
 
--module(emq_web_hook).
+-module(emqx_web_hook).
 
--include_lib("emqttd/include/emqttd.hrl").
+-include_lib("emqx/include/emqx.hrl").
 
--define(APP, emq_web_hook).
+-define(APP, emqx_web_hook).
 
 -export([load/0, unload/0]).
 
@@ -170,7 +170,7 @@ on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
                   {qos, Message#mqtt_message.qos},
                   {retain, Message#mqtt_message.retain},
                   {payload, Message#mqtt_message.payload},
-                  {ts, emqttd_time:now_secs(Message#mqtt_message.timestamp)}],
+                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
         send_http_request(Params),
         {ok, Message}
     end, Message, Topic, Filter).
@@ -191,7 +191,7 @@ on_message_delivered(ClientId, Username, Message = #mqtt_message{topic = Topic},
                   {qos, Message#mqtt_message.qos},
                   {retain, Message#mqtt_message.retain},
                   {payload, Message#mqtt_message.payload},
-                  {ts, emqttd_time:now_secs(Message#mqtt_message.timestamp)}],
+                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
         send_http_request(Params)
     end, Topic, Filter).
 
@@ -211,7 +211,7 @@ on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Fi
                   {qos, Message#mqtt_message.qos},
                   {retain, Message#mqtt_message.retain},
                   {payload, Message#mqtt_message.payload},
-                  {ts, emqttd_time:now_secs(Message#mqtt_message.timestamp)}],
+                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
         send_http_request(Params)
     end, Topic, Filter).
 
@@ -243,7 +243,7 @@ parse_rule([{Rule, Conf} | Rules], Acc) ->
 with_filter(Fun, _, undefined) ->
     Fun(), ok;
 with_filter(Fun, Topic, Filter) ->
-    case emqttd_topic:match(Topic, Filter) of
+    case emqx_topic:match(Topic, Filter) of
         true  -> Fun(), ok;
         false -> ok
     end.
@@ -251,7 +251,7 @@ with_filter(Fun, Topic, Filter) ->
 with_filter(Fun, _, _, undefined) ->
     Fun();
 with_filter(Fun, Msg, Topic, Filter) ->
-    case emqttd_topic:match(Topic, Filter) of
+    case emqx_topic:match(Topic, Filter) of
         true  -> Fun();
         false -> {ok, Msg}
     end.
@@ -267,31 +267,31 @@ a2b(A) -> erlang:atom_to_binary(A, utf8).
 
 load_(Hook, Fun, Filter, Params) ->
     case Hook of
-        'client.connected'    -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'client.disconnected' -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'client.subscribe'    -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'client.unsubscribe'  -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'session.created'     -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'session.subscribed'  -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'session.unsubscribed'-> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'session.terminated'  -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'message.publish'     -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/2}, [Params]);
-        'message.acked'       -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'message.delivered'   -> emqttd:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params])
+        'client.connected'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
+        'client.disconnected' -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
+        'client.subscribe'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'client.unsubscribe'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'session.created'     -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
+        'session.subscribed'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'session.unsubscribed'-> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'session.terminated'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'message.publish'     -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/2}, [Params]);
+        'message.acked'       -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'message.delivered'   -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params])
     end.
 
 unload_(Hook, Fun, Filter) ->
     case Hook of
-        'client.connected'    -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'client.disconnected' -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'client.subscribe'    -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'client.unsubscribe'  -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'session.created'     -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'session.subscribed'  -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'session.unsubscribed'-> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'session.terminated'  -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'message.publish'     -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/2});
-        'message.acked'       -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'message.delivered'   -> emqttd:unhook(Hook, {Filter, fun ?MODULE:Fun/4})
+        'client.connected'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
+        'client.disconnected' -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
+        'client.subscribe'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'client.unsubscribe'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'session.created'     -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
+        'session.subscribed'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'session.unsubscribed'-> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'session.terminated'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'message.publish'     -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/2});
+        'message.acked'       -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'message.delivered'   -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4})
     end.
 

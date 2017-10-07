@@ -1,12 +1,12 @@
-PROJECT = emq_web_hook
-PROJECT_DESCRIPTION = EMQ Webhook Plugin
-PROJECT_VERSION = 2.3
+PROJECT = emqx_web_hook
+PROJECT_DESCRIPTION = EMQ X Webhook Plugin
+PROJECT_VERSION = 2.4
 
 DEPS = clique
 dep_clique  = git https://github.com/emqtt/clique
 
-BUILD_DEPS = emqttd
-dep_emqttd = git https://github.com/emqtt/emqttd develop
+BUILD_DEPS = emqx
+dep_emqttd = git https://github.com/emqtt/emqttd X
 
 ERLC_OPTS += +debug_info
 ERLC_OPTS += +'{parse_transform, lager_transform}'
@@ -24,4 +24,5 @@ include erlang.mk
 app:: rebar.config
 
 app.config::
-	./deps/cuttlefish/cuttlefish -l info -e etc/ -c etc/emq_web_hook.conf -i priv/emq_web_hook.schema -d data
+	./deps/cuttlefish/cuttlefish -l info -e etc/ -c etc/emqx_web_hook.conf -i priv/emqx_web_hook.schema -d data
+

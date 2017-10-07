@@ -1,8 +1,24 @@
--module(emq_web_hook_SUITE).
+%%--------------------------------------------------------------------
+%% Copyright (c) 2013-2017 EMQ Enterprise, Inc. (http://emqtt.io)
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%%     http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+%%--------------------------------------------------------------------
+
+-module(emqx_web_hook_SUITE).
 
 -compile(export_all).
 
--include_lib("emqttd/include/emqttd.hrl").
+-include_lib("emqx/include/emqx.hrl").
 
 -include_lib("common_test/include/ct.hrl").
 
@@ -15,35 +31,35 @@
                    init_args = [] :: list(any()),
                    priority  = 0  :: integer()}).
 
--define(HOOK_LOOKUP(H),         emqttd_hooks:lookup(list_to_atom(H))).
+-define(HOOK_LOOKUP(H),         emqx_hooks:lookup(list_to_atom(H))).
 
 all() -> 
-    [{group, emq_web_hook_actions},
-     {group, emq_web_hook}
+    [{group, emqx_web_hook_actions},
+     {group, emqx_web_hook}
      ].
 
 groups() -> 
-    [{emq_web_hook, [sequence], [reload, server_config, change_config]},
-     {emq_web_hook_actions, [sequence], [case1]}
+    [{emqx_web_hook, [sequence], [reload, server_config, change_config]},
+     {emqx_web_hook_actions, [sequence], [case1]}
     ].
 
 init_per_suite(Config) ->
     DataDir = proplists:get_value(data_dir, Config),
-    [start_apps(App, DataDir) || App <- [emqttd, emq_web_hook]],
+    [start_apps(App, DataDir) || App <- [emqx, emqx_web_hook]],
     start_http_(),
     Config.
 
 end_per_suite(_Config) ->
     mochiweb:stop_http(8080),
-    [application:stop(App) || App <- [emq_web_hook, emqttd]].
+    [application:stop(App) || App <- [emqx_web_hook, emqx]].
 
 reload(_Config) -> 
-    {ok, Rules} = application:get_env(emq_web_hook, rules),
-    emq_web_hook:unload(),
+    {ok, Rules} = application:get_env(emqx_web_hook, rules),
+    emqx_web_hook:unload(),
     lists:foreach(fun({HookName, _Action}) -> 
                           ?assertEqual([], ?HOOK_LOOKUP(HookName))
                   end, Rules),
-    emq_web_hook:load(),
+    emqx_web_hook:load(),
     lists:foreach(fun({HookName, _Action}) ->
                           [#callback{function = Fun}] = ?HOOK_LOOKUP(HookName),
                           ?assertEqual(true, 
@@ -51,20 +67,20 @@ reload(_Config) ->
                   end, Rules).
 
 server_config(_) ->
-    emqttd_cli_config:run(["config", "set", "web.hook.api.url=https://example.com", "--app=emq_web_hook"]),
-    {ok, Url} =  application:get_env(emq_web_hook, url),
+    emqx_cli_config:run(["config", "set", "web.hook.api.url=https://example.com", "--app=emqx_web_hook"]),
+    {ok, Url} =  application:get_env(emqx_web_hook, url),
     ?assertEqual("https://example.com", Url).
 
 change_config(_Config) ->
-    {ok, Rules} = application:get_env(emq_web_hook, rules),
-    emq_web_hook:unload(),
+    {ok, Rules} = application:get_env(emqx_web_hook, rules),
+    emqx_web_hook:unload(),
     HookRules = lists:keydelete("message.delivered", 1, Rules),
-    application:set_env(emq_web_hook, rules, HookRules),
-    emq_web_hook:load(),
+    application:set_env(emqx_web_hook, rules, HookRules),
+    emqx_web_hook:load(),
     ?assertEqual([], ?HOOK_LOOKUP("message.delivered")),
-    emq_web_hook:unload(),
-    application:set_env(emq_web_hook, rules, Rules),
-    emq_web_hook:load().
+    emqx_web_hook:unload(),
+    application:set_env(emqx_web_hook, rules, Rules),
+    emqx_web_hook:load().
 
 case1(_Config) ->
     {ok, C} = emqttc:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
@@ -97,3 +113,4 @@ start_http_() ->
 handle(Req) ->
     %%ct:log("Req:~p~n", [Req:recv_body()]),
     Req:respond({200, [{"Content-Type", "application/json"}], []}).
+
