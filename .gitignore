@@ -22,3 +22,4 @@ ct.coverdata
 deps
 eunit.coverdata
 test/ct.cover.spec
+emqx_web_hook.d
