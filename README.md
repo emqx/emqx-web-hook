@@ -44,6 +44,7 @@ API
 {
     "action":"client_connected",
     "client_id":"C_1492410235117",
+    "username":"C_1492410235117",
     "conn_ack":0
 }
 ```
@@ -53,6 +54,7 @@ API
 {
     "action":"client_disconnected",
     "client_id":"C_1492410235117",
+    "username":"C_1492410235117",
     "reason":"normal"
 }
 ```
