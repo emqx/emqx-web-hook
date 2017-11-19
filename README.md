@@ -1,6 +1,6 @@
 
-emq_web_hook
-=====
+emq-web-hook
+============
 
 EMQ broker plugin to catch broker hooks through webhook.<br>
 [http://emqtt.io](http://emqtt.io)<br>
@@ -44,6 +44,7 @@ API
 {
     "action":"client_connected",
     "client_id":"C_1492410235117",
+    "username":"C_1492410235117",
     "conn_ack":0
 }
 ```
@@ -53,6 +54,7 @@ API
 {
     "action":"client_disconnected",
     "client_id":"C_1492410235117",
+    "username":"C_1492410235117",
     "reason":"normal"
 }
 ```
