@@ -1,6 +1,6 @@
 PROJECT = emq_web_hook
 PROJECT_DESCRIPTION = EMQ Webhook Plugin
-PROJECT_VERSION = 2.3
+PROJECT_VERSION = 2.3.0
 
 DEPS = clique
 dep_clique  = git https://github.com/emqtt/clique
