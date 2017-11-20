@@ -1,5 +1,5 @@
 
-emqx_web_hook
+emqx-web-hook
 =============
 
 EMQ X plugin to catch broker hooks through webhook.<br>
@@ -15,7 +15,7 @@ Setup
 
 DEPS += emqx_web_hook
 
-dep_emqx_web_hook = git https://github.com/emqtt/emqx-web-hook master
+dep_emqx_web_hook = git git@github.com:emqx/emqx-web-hook.git master
 
 ##### In relx.config
 
@@ -46,6 +46,7 @@ API
 {
     "action":"client_connected",
     "client_id":"C_1492410235117",
+    "username":"C_1492410235117",
     "conn_ack":0
 }
 ```
@@ -55,6 +56,7 @@ API
 {
     "action":"client_disconnected",
     "client_id":"C_1492410235117",
+    "username":"C_1492410235117",
     "reason":"normal"
 }
 ```

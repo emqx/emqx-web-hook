@@ -34,21 +34,26 @@
 -define(LOG(Level, Format, Args), lager:Level("WebHook: " ++ Format, Args)).
 
 load() ->
-    lists:foreach(fun({Hook, Fun, Filter}) ->
+    lists:foreach(
+      fun({Hook, Fun, Filter}) ->
         load_(Hook, binary_to_atom(Fun, utf8), Filter, {Filter})
-    end, parse_rule(application:get_env(?APP, rules, []))).
+      end, parse_rule(application:get_env(?APP, rules, []))).
 
 unload() ->
-    lists:foreach(fun({Hook, Fun, Filter}) ->
-        unload_(Hook, binary_to_atom(Fun, utf8), Filter)
-    end, parse_rule(application:get_env(?APP, rules, []))).
+    lists:foreach(
+      fun({Hook, Fun, Filter}) ->
+          unload_(Hook, binary_to_atom(Fun, utf8), Filter)
+      end, parse_rule(application:get_env(?APP, rules, []))).
 
 %%--------------------------------------------------------------------
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId}, _Env) ->
-    Params = [{action, client_connected}, {client_id, ClientId}, {conn_ack, ConnAck}],
+on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId, username = Username}, _Env) ->
+    Params = [{action, client_connected},
+              {client_id, ClientId},
+              {username, Username},
+              {conn_ack, ConnAck}],
     send_http_request(Params),
     {ok, Client}.
 
@@ -58,9 +63,12 @@ on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId}, _Env) 
 
 on_client_disconnected({shutdown, Reason}, Client, Env) when is_atom(Reason) ->
     on_client_disconnected(Reason, Client, Env);
-on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId}, _Env)
+on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId, username = Username}, _Env)
     when is_atom(Reason) ->
-    Params = [{action, client_disconnected},{client_id, ClientId}, {reason, Reason}],
+    Params = [{action, client_disconnected},
+              {client_id, ClientId},
+              {username, Username},
+              {reason, Reason}],
     send_http_request(Params),
     ok;
 on_client_disconnected(Reason, _Client, _Env) ->
@@ -73,13 +81,14 @@ on_client_disconnected(Reason, _Client, _Env) ->
 
 on_client_subscribe(ClientId, Username, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
-        with_filter(fun() ->
-            Params = [{action, client_subscribe},
-                      {client_id, ClientId},
-                      {username, Username},
-                      {topic, Topic},
-                      {opts, Opts}],
-            send_http_request(Params)
+      with_filter(
+        fun() ->
+          Params = [{action, client_subscribe},
+                    {client_id, ClientId},
+                    {username, Username},
+                    {topic, Topic},
+                    {opts, Opts}],
+          send_http_request(Params)
         end, Topic, Filter)
     end, TopicTable).
 
@@ -89,13 +98,14 @@ on_client_subscribe(ClientId, Username, TopicTable, {Filter}) ->
 
 on_client_unsubscribe(ClientId, Username, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
-        with_filter(fun() ->
-            Params = [{action, client_unsubscribe},
-                      {client_id, ClientId},
-                      {username, Username},
-                      {topic, Topic},
-                      {opts, Opts}],
-            send_http_request(Params)
+      with_filter(
+        fun() ->
+          Params = [{action, client_unsubscribe},
+                    {client_id, ClientId},
+                    {username, Username},
+                    {topic, Topic},
+                    {opts, Opts}],
+          send_http_request(Params)
         end, Topic, Filter)
     end, TopicTable).
 
@@ -115,27 +125,29 @@ on_session_created(ClientId, Username, _Env) ->
 %%--------------------------------------------------------------------
 
 on_session_subscribed(ClientId, Username, {Topic, Opts}, {Filter}) ->
-    with_filter(fun() ->
+    with_filter(
+      fun() ->
         Params = [{action, session_subscribed},
                   {client_id, ClientId},
                   {username, Username},
                   {topic, Topic},
                   {opts, Opts}],
         send_http_request(Params)
-    end, Topic, Filter).
+      end, Topic, Filter).
 
 %%--------------------------------------------------------------------
 %% Session unsubscribed
 %%--------------------------------------------------------------------
 
 on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, {Filter}) ->
-    with_filter(fun() ->
+    with_filter(
+      fun() ->
         Params = [{action, session_unsubscribed},
                   {client_id, ClientId},
                   {username, Username},
                   {topic, Topic}],
         send_http_request(Params)
-    end, Topic, Filter).
+      end, Topic, Filter).
 
 %%--------------------------------------------------------------------
 %% Session terminated
@@ -143,7 +155,8 @@ on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, {Filter}) ->
 
 on_session_terminated(ClientId, Username, {shutdown, Reason}, Env) when is_atom(Reason) ->
     on_session_terminated(ClientId, Username, Reason, Env);
-on_session_terminated(ClientId, Username, Reason, _Env) when is_atom(Reason) ->
+on_session_terminated(ClientId, Username, Reason, _Env)
+    when is_atom(Reason) ->
     Params = [{action, session_terminated},
               {client_id, ClientId},
               {username, Username},
@@ -161,7 +174,8 @@ on_session_terminated(_ClientId, _Username, Reason, _Env) ->
 on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
 on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
-    with_filter(fun() ->
+    with_filter(
+      fun() ->
         {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
         Params = [{action, message_publish},
                   {from_client_id, FromClientId},
@@ -173,26 +187,27 @@ on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
                   {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
         send_http_request(Params),
         {ok, Message}
-    end, Message, Topic, Filter).
+      end, Message, Topic, Filter).
 
 %%--------------------------------------------------------------------
 %% Message delivered
 %%--------------------------------------------------------------------
 
 on_message_delivered(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Filter}) ->
-    with_filter(fun() ->
-        {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
-        Params = [{action, message_delivered},
-                  {client_id, ClientId},
-                  {username, Username},
-                  {from_client_id, FromClientId},
-                  {from_username, FromUsername},
-                  {topic, Message#mqtt_message.topic},
-                  {qos, Message#mqtt_message.qos},
-                  {retain, Message#mqtt_message.retain},
-                  {payload, Message#mqtt_message.payload},
-                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
-        send_http_request(Params)
+  with_filter(
+    fun() ->
+      {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
+      Params = [{action, message_delivered},
+                {client_id, ClientId},
+                {username, Username},
+                {from_client_id, FromClientId},
+                {from_username, FromUsername},
+                {topic, Message#mqtt_message.topic},
+                {qos, Message#mqtt_message.qos},
+                {retain, Message#mqtt_message.retain},
+                {payload, Message#mqtt_message.payload},
+                {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
+      send_http_request(Params)
     end, Topic, Filter).
 
 %%--------------------------------------------------------------------
@@ -200,7 +215,8 @@ on_message_delivered(ClientId, Username, Message = #mqtt_message{topic = Topic},
 %%--------------------------------------------------------------------
 
 on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Filter}) ->
-    with_filter(fun() ->
+    with_filter(
+      fun() ->
         {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
         Params = [{action, message_acked},
                   {client_id, ClientId},
@@ -213,7 +229,7 @@ on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Fi
                   {payload, Message#mqtt_message.payload},
                   {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
         send_http_request(Params)
-    end, Topic, Filter).
+      end, Topic, Filter).
 
 %%--------------------------------------------------------------------
 %% Internal functions
@@ -224,8 +240,7 @@ send_http_request(Params) ->
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
     case httpc:request(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], []) of
-        {ok, _} -> 
-            ok;
+        {ok, _} -> ok;
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
     end.
