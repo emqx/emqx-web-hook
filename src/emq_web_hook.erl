@@ -46,7 +46,8 @@ unload() ->
 %%--------------------------------------------------------------------
 %% Client connected
 %%--------------------------------------------------------------------
-
+on_client_connected(0, #mqtt_client{}, _Env) ->
+    {ok, Client};
 on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId, username = Username}, _Env) ->
     Params = [{action, client_connected},
               {client_id, ClientId},
@@ -59,6 +60,8 @@ on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId, usernam
 %% Client disconnected
 %%--------------------------------------------------------------------
 
+on_client_disconnected(auth_failure, #mqtt_client{}, Env) ->
+    ok;
 on_client_disconnected({shutdown, Reason}, Client, Env) when is_atom(Reason) ->
     on_client_disconnected(Reason, Client, Env);
 on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId, username = Username}, _Env)
