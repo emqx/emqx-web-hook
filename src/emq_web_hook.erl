@@ -46,14 +46,16 @@ unload() ->
 %%--------------------------------------------------------------------
 %% Client connected
 %%--------------------------------------------------------------------
-on_client_connected(0, #mqtt_client{}, _Env) ->
-    {ok, Client};
-on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId, username = Username}, _Env) ->
+
+on_client_connected(0, Client = #mqtt_client{client_id = ClientId, username = Username}, _Env) ->
     Params = [{action, client_connected},
               {client_id, ClientId},
               {username, Username},
-              {conn_ack, ConnAck}],
+              {conn_ack, 0}],
     send_http_request(Params),
+    {ok, Client};
+
+on_client_connected(_, Client = #mqtt_client{}, _Env) ->
     {ok, Client}.
 
 %%--------------------------------------------------------------------
