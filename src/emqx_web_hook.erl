@@ -64,7 +64,7 @@ on_client_connected(_, Client = #mqtt_client{}, _Env) ->
 %% Client disconnected
 %%--------------------------------------------------------------------
 
-on_client_disconnected(auth_failure, #mqtt_client{}, Env) ->
+on_client_disconnected(auth_failure, #mqtt_client{}, _Env) ->
     ok;
 on_client_disconnected({shutdown, Reason}, Client, Env) when is_atom(Reason) ->
     on_client_disconnected(Reason, Client, Env);
