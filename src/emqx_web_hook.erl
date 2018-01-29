@@ -232,22 +232,38 @@ on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Fi
                   {qos, Message#mqtt_message.qos},
                   {retain, Message#mqtt_message.retain},
                   {payload, Message#mqtt_message.payload},
-                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
+                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)},
+                  {headers, Message#mqtt_message.headers}],
         send_http_request(Params)
       end, Topic, Filter).
 
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
-
 send_http_request(Params) ->
-    Params1 = iolist_to_binary(mochijson2:encode(Params)),
-    Url = application:get_env(?APP, url, "http://127.0.0.1"),
-    ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
-    case httpc:request(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], []) of
+    DefaultUrl = application:get_env(?APP, url, "http://127.0.0.1"),
+    Headers = proplists:get_value(headers, Params, []),
+    Url = format_url(proplists:get_value(<<"url">>, Headers, DefaultUrl)),
+    Params1 = check_body(Params, Headers),
+    Params2 = iolist_to_binary(mochijson2:encode(Params1)),
+    ?LOG(debug, "Url:~p, params:~s", [Url, Params2]),
+    case httpc:request(post, {Url, [], "application/json", Params2}, [{timeout, 5000}], []) of
         {ok, _} -> ok;
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
+    end.
+
+check_body(Params, []) ->
+    Params;
+check_body(_Params, Headers) ->
+    Filed = proplists:get_value(<<"return_filed">>, Headers),
+    check_body(Headers, Filed, []).
+
+check_body(_, [], Acc) -> Acc;
+check_body(Headers, [Key | Rest], Acc) ->
+    case lists:keysearch(Key, 1, Headers) of
+        {value,{_, V}} -> check_body(Headers, Rest, [{Key, V} | Acc]);
+        false          -> check_body(Headers, Rest, Acc)
     end.
 
 parse_rule(Rules) ->
@@ -282,6 +298,9 @@ format_from(From) when is_atom(From) ->
     {a2b(From), a2b(From)};
 format_from(_) ->
     {<<>>, <<>>}.
+
+format_url(Url) when is_list(Url) -> Url;
+format_url(Url) when is_binary(Url) -> binary_to_list(Url).
 
 a2b(A) -> erlang:atom_to_binary(A, utf8).
 
