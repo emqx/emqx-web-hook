@@ -1,9 +1,10 @@
 PROJECT = emqx_web_hook
 PROJECT_DESCRIPTION = EMQ X Webhook Plugin
-PROJECT_VERSION = 2.4.1
+PROJECT_VERSION = 2.4.2
 
-DEPS = clique
-dep_clique  = git https://github.com/emqtt/clique
+DEPS = jsx clique
+dep_jsx    = git https://github.com/talentdeficit/jsx
+dep_clique = git https://github.com/emqtt/clique
 
 BUILD_DEPS = emqx
 dep_emqx = git git@github.com:emqx/emqx-enterprise master
