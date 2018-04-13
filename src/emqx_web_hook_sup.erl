@@ -22,8 +22,10 @@
 
 -export([init/1]).
 
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+
 start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    {ok, {{one_for_all, 0, 1}, []}}.
+    {ok, {{one_for_all, 0, 1}, [?CHILD(emqx_web_hook_rule, worker)]}}.

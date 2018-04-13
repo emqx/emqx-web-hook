@@ -2,6 +2,10 @@
   {datatype, string}
 ]}.
 
+{mapping, "web.hook.api.actor.server", "emqx_web_hook.actor_server", [
+  {datatype, string}
+]}.
+
 {mapping, "web.hook.rule.client.connected.$name", "emqx_web_hook.rules", [
   {datatype, string}
 ]}.
