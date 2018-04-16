@@ -22,7 +22,7 @@
 
 %% API
 -export([start_link/0, insert/1, update/1, delete/1, forward/1,
-         serialize/1]).
+         serialize/1, serialize/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -59,8 +59,12 @@ forward(Msg = #mqtt_message{topic=Topic, headers=Headers}) ->
     GroupId = get_value(group_id, Headers),
     [_, TenantId, _, ProductId | _T] = binary:split(Topic, <<"/">>, [global]),
     Rules = ets:match_object(?TAB, #rule{tenant_id=TenantId, enable=1, _='_', type=webhook}),
-    [dispatch(Type, Msg, Config)
-      || #rule{group_id=GId, product_id=PId, config=Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
+    [dispatch(Type, Msg, Rule)
+      || Rule=#rule{group_id=GId, product_id=PId, config=Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
+
+
+serialize(Id, Rule) when is_list(Rule) ->
+    R = serialize(Rule), R#rule{id = Id}.
 
 serialize(Rule) when is_list(Rule) ->
     Id        = get_value(<<"id">>, Rule),
@@ -134,12 +138,13 @@ code_change(_OldVsn, State, _Extra) ->
 %% Interval Funcs
 %%--------------------------------------------------------------------
 
-dispatch(webhook, Message, #{url := Url}) ->
+dispatch(webhook, Message, #rule{tenant_id=TId, product_id=PId, group_id=GId, config=#{url := Url}}) ->
     lager:debug("emqx_web_hook_rule dispatch forward message ~p to ~p", [Message, Url]),
-    {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
-    Params = [{action, message_publish},
-              {from_client_id, FromClientId},
-              {from_username, FromUsername},
+    {FromClientId, _FromUsername} = format_from(Message#mqtt_message.from),
+    [_, _, DeviceId] = binary:split(FromClientId, <<":">>, [global]),
+    Params = [{deviceID, DeviceId},
+              {productID, PId},
+              {groupID, GId},
               {topic, Message#mqtt_message.topic},
               {qos, Message#mqtt_message.qos},
               {retain, Message#mqtt_message.retain},
@@ -147,7 +152,7 @@ dispatch(webhook, Message, #{url := Url}) ->
               {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
     send_http_request(binary_to_list(Url), Params);
 
-dispatch(_Type, _Msg, _Config) ->
+dispatch(_Type, _Msg, _Rule) ->
     lager:error("emqx_web_hook_rule dispatch message failed, reason: not_supported_type"), ok.
 
 request_all_rule(Url) ->
