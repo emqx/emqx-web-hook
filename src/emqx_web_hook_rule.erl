@@ -68,7 +68,7 @@ serialize(Id, Rule) when is_list(Rule) ->
 
 serialize(Rule) when is_list(Rule) ->
     Id        = get_value(<<"id">>, Rule),
-    Type      = binary_to_atom(get_value(<<"ruleType">>, Rule), utf8),
+    Type      = rule_type(get_value(<<"ruleType">>, Rule)),
     Enable    = get_value(<<"enable">>, Rule),
     TenantId  = get_value(<<"tenantID">>, Rule),
     ProductId = get_value(<<"productID">>, Rule),
@@ -76,6 +76,8 @@ serialize(Rule) when is_list(Rule) ->
     Config    = config_(get_value(<<"config">>, Rule)),
     #rule{id=Id, type=Type, enable=Enable, tenant_id=TenantId,
           product_id=ProductId, group_id=GroupId, config=Config}.
+
+rule_type(1) -> webhook.
 
 config_(C) when is_list(C) ->
     C1 = lists:map(fun({K, V}) -> {binary_to_atom(K, utf8), V} end, C),
