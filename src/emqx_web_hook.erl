@@ -179,6 +179,7 @@ on_session_terminated(_ClientId, _Username, Reason, _Env) ->
 on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
 on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
+    emqx_web_hook_rule:forward(Message),
     with_filter(
       fun() ->
         {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
