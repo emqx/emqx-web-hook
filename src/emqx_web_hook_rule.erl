@@ -62,7 +62,6 @@ forward(Msg = #mqtt_message{topic=Topic, headers=Headers}) ->
     [dispatch(Type, Msg, Rule)
       || Rule=#rule{group_id=GId, product_id=PId, config=Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
 
-
 serialize(Id, Rule) when is_list(Rule) ->
     R = serialize(Rule), R#rule{id = Id}.
 
@@ -140,19 +139,20 @@ code_change(_OldVsn, State, _Extra) ->
 %% Interval Funcs
 %%--------------------------------------------------------------------
 
-dispatch(webhook, Message, #rule{tenant_id=TId, product_id=PId, group_id=GId, config=#{url := Url}}) ->
+dispatch(webhook, Message, #rule{tenant_id=TId, product_id=PId, group_id=GId, config=Conf}) ->
+    #{url := Url} = Conf,
     lager:debug("emqx_web_hook_rule dispatch forward message ~p to ~p", [Message, Url]),
     {FromClientId, _FromUsername} = format_from(Message#mqtt_message.from),
     [_, _, DeviceId] = binary:split(FromClientId, <<":">>, [global]),
     Params = [{deviceID, DeviceId},
               {productID, PId},
               {groupID, GId},
-              {topic, Message#mqtt_message.topic},
+              {topic, unmount(Message#mqtt_message.topic)},
               {qos, Message#mqtt_message.qos},
               {retain, Message#mqtt_message.retain},
               {payload, Message#mqtt_message.payload},
               {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
-    send_http_request(binary_to_list(Url), Params);
+    send_http_request(binary_to_list(Url), authorization(Conf), Params);
 
 dispatch(_Type, _Msg, _Rule) ->
     lager:error("emqx_web_hook_rule dispatch message failed, reason: not_supported_type"), ok.
@@ -170,6 +170,16 @@ request_all_rule(Url) ->
                     lists:map(fun serialize/1, Rules)
             end
     end.
+
+unmount(Topic) ->
+    %% Topic = <<"tenants/CSX9Rh2lL/products/P3gKub/test">>
+    [_, _, _, _|Topic1] = binary:split(Topic, <<"/">>, [global]),
+    iolist_to_binary(lists:join("/", Topic1)).
+
+authorization(#{token := Token, tokenType := Type}) ->
+    [{"Authorization", binary_to_list(iolist_to_binary([Type, " ", Token]))}];
+authorization(_Conf) ->
+    [].
 
 format_from({ClientId, Username}) ->
     {ClientId, Username};
@@ -194,10 +204,10 @@ merge_record_([_V1|T1], [V2|T2], Acc) ->
 
 merge_record_([], [], Acc) -> lists:reverse(Acc).
 
-send_http_request(Url, Params) ->
+send_http_request(Url, Headers, Params) ->
     Params1 = iolist_to_binary(mochijson2:encode(Params)),
-    lager:debug("Url:~p, params:~s", [Url, Params1]),
-    case httpc:request(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], []) of
+    lager:debug("send http request url: ~p, header: ~p, params: ~s", [Url, Headers, Params1]),
+    case httpc:request(post, {Url, Headers, "application/json", Params1}, [{timeout, 5000}], []) of
         {ok, _} -> ok;
         {error, Reason} ->
             lager:error("HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
