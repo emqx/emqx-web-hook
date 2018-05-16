@@ -55,9 +55,11 @@ delete(Id) ->
     gen_server:call(?SERVER, {delete, Id}).
 
 forward(Msg = #mqtt_message{topic=Topic, headers=Headers}) ->
-    lager:debug("need forward message ~p", [Msg]),
-    GroupId = get_value(group_id, Headers),
-    [_, TenantId, _, ProductId | _T] = binary:split(Topic, <<"/">>, [global]),
+    lager:debug("emqx_web_hook_rule check forward message ~p", [Msg]),
+    GroupId   = get_value(group_id, Headers),
+    TenantId  = get_value(tenant_id, Headers),
+    ProductId = get_value(product_id, Headers),
+
     Rules = ets:match_object(?TAB, #rule{tenant_id=TenantId, enable=1, _='_', type=webhook}),
     [dispatch(Type, Msg, Rule)
       || Rule=#rule{group_id=GId, product_id=PId, config=Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
@@ -143,16 +145,20 @@ dispatch(webhook, Message, #rule{tenant_id=TId, product_id=PId, group_id=GId, co
     #{url := Url} = Conf,
     lager:debug("emqx_web_hook_rule dispatch forward message ~p to ~p", [Message, Url]),
     {FromClientId, _FromUsername} = format_from(Message#mqtt_message.from),
-    [_, _, DeviceId] = binary:split(FromClientId, <<":">>, [global]),
-    Params = [{deviceID, DeviceId},
-              {productID, PId},
-              {groupID, GId},
-              {topic, unmount(Message#mqtt_message.topic)},
-              {qos, Message#mqtt_message.qos},
-              {retain, Message#mqtt_message.retain},
-              {payload, Message#mqtt_message.payload},
-              {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
-    send_http_request(binary_to_list(Url), authorization(Conf), Params);
+    case binary:split(FromClientId, <<":">>, [global]) of
+        [_,_,DeviceId] ->
+            Params = [{deviceID, DeviceId},
+                      {productID, PId},
+                      {groupID, GId},
+                      {topic, unmount(Message#mqtt_message.topic)},
+                      {qos, Message#mqtt_message.qos},
+                      {retain, Message#mqtt_message.retain},
+                      {payload, Message#mqtt_message.payload},
+                      {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
+            send_http_request(binary_to_list(Url), authorization(Conf), Params);
+        _ ->
+            lager:error("emqx_web_hook_rule dispatch failed, unexpected clientid ~p", [FromClientId])
+    end;
 
 dispatch(_Type, _Msg, _Rule) ->
     lager:error("emqx_web_hook_rule dispatch message failed, reason: not_supported_type"), ok.
