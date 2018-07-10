@@ -29,8 +29,10 @@ start(_StartType, _StartArgs) ->
     {ok, Sup}.
 
 stop(_State) ->
-    hackney_pool:stop_pool(emqx_pool),
-    application:stop(hackney),
+    spawn(fun() ->
+                  hackney_pool:stop_pool(emqx_pool),
+                  application:stop(hackney)
+          end),
     emqx_web_hook:unload(),
     emqx_web_hook_cfg:unregister(),
     ok.
