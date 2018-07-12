@@ -30,6 +30,7 @@ start(_StartType, _StartArgs) ->
 
 stop(_State) ->
     spawn(fun() ->
+                  group_leader(whereis(init), self()),
                   hackney_pool:stop_pool(emqx_pool),
                   application:stop(hackney)
           end),
