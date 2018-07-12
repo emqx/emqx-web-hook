@@ -23,7 +23,6 @@
 start(_StartType, _StartArgs) ->
     application:ensure_all_started(hackney),
     {ok, Sup} = emqx_web_hook_sup:start_link(),
-    ok = hackney_pool:start_pool(emqx_pool, [{timeout, 5000}, {max_connections, 10000}]),
     emqx_web_hook:load(),
     emqx_web_hook_cfg:register(),
     {ok, Sup}.
@@ -31,7 +30,6 @@ start(_StartType, _StartArgs) ->
 stop(_State) ->
     spawn(fun() ->
                   group_leader(whereis(init), self()),
-                  hackney_pool:stop_pool(emqx_pool),
                   application:stop(hackney)
           end),
     emqx_web_hook:unload(),
