@@ -241,7 +241,7 @@ on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Fi
 %%--------------------------------------------------------------------
 
 send_http_request(Params) ->
-    Params1 = iolist_to_binary(mochijson2:encode(Params)),
+    Params1 = jsx:encode(Params),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
     Method = post,
@@ -262,7 +262,7 @@ parse_rule(Rules) ->
 parse_rule([], Acc) ->
     lists:reverse(Acc);
 parse_rule([{Rule, Conf} | Rules], Acc) ->
-    {_, Params} = mochijson2:decode(Conf),
+    Params = jsx:decode(list_to_binary(Conf)),
     Action = proplists:get_value(<<"action">>, Params),
     Filter = proplists:get_value(<<"topic">>, Params),
     parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).
