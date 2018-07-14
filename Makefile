@@ -2,9 +2,10 @@ PROJECT = emqx_web_hook
 PROJECT_DESCRIPTION = EMQ X Webhook Plugin
 PROJECT_VERSION = 2.4.2
 
-DEPS = jsx clique
+DEPS = jsx clique hackney
 dep_jsx    = git https://github.com/talentdeficit/jsx
 dep_clique = git https://github.com/emqtt/clique
+dep_hackney = git git@github.com:benoitc/hackney
 
 BUILD_DEPS = emqx
 dep_emqx = git git@github.com:emqx/emqx-enterprise master
@@ -14,6 +15,8 @@ ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 TEST_DEPS = emqttc
 dep_emqttc = git https://github.com/emqtt/emqttc
+
+NO_AUTOPATCH = cuttlefish
 
 TEST_ERLC_OPTS += +debug_info
 TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'

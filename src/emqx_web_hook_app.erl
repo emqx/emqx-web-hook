@@ -21,12 +21,17 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
+    application:ensure_all_started(hackney),
     {ok, Sup} = emqx_web_hook_sup:start_link(),
     emqx_web_hook:load(),
     emqx_web_hook_cfg:register(),
     {ok, Sup}.
 
 stop(_State) ->
+    spawn(fun() ->
+                  group_leader(whereis(init), self()),
+                  application:stop(hackney)
+          end),
     emqx_web_hook:unload(),
     emqx_web_hook_cfg:unregister(),
     ok.
