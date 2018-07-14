@@ -249,7 +249,7 @@ send_http_request(Params) ->
     Params2 = jsx:encode(Params1),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params2]),
     Method = post,
-    http_request(Method, Params1, Url).
+    http_request(Method, Params2, Url).
 
 http_request(Method, Payload, Url) ->
     Headers = [{<<"Content-Type">>, <<"application/json">>}],
