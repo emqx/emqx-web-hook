@@ -244,7 +244,13 @@ send_http_request(Params) ->
     Params1 = iolist_to_binary(mochijson2:encode(Params)),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
-    case hackney:request(post, Url, [{<<"Content-Type">>, <<"application/json">>}], Params1, [{pool, default}]) of
+    Method = post,
+    http_request(Method, Params1, Url).
+
+http_request(Method, Payload, Url) ->
+    Headers = [{<<"Content-Type">>, <<"application/json">>}],
+    Options = [{pool, default}],
+    case hackney:request(Method, Url, Headers, Payload, Options) of
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
         _ ->
