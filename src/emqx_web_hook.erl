@@ -1,5 +1,5 @@
 %%--------------------------------------------------------------------
-%% Copyright (c) 2013-2017 EMQ Enterprise, Inc. (http://emqtt.io)
+%% Copyright (c) 2013-2018 EMQ Enterprise, Inc. (http://emqtt.io)
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -246,12 +246,19 @@ send_http_request(Params) ->
     Headers = proplists:get_value(headers, Params, []),
     Url = format_url(proplists:get_value(<<"url">>, Headers, DefaultUrl)),
     Params1 = check_body(Params, Headers),
-    Params2 = iolist_to_binary(mochijson2:encode(Params1)),
+    Params2 = jsx:encode(Params1),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params2]),
-    case httpc:request(post, {Url, [], "application/json", Params2}, [{timeout, 5000}], []) of
-        {ok, _} -> ok;
+    Method = post,
+    http_request(Method, Params1, Url).
+
+http_request(Method, Payload, Url) ->
+    Headers = [{<<"Content-Type">>, <<"application/json">>}],
+    Options = [{pool, default}],
+    case hackney:request(Method, Url, Headers, Payload, Options) of
         {error, Reason} ->
-            ?LOG(error, "HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
+            ?LOG(error, "HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
+        _ ->
+            ok
     end.
 
 check_body(Params, []) ->
@@ -272,7 +279,7 @@ parse_rule(Rules) ->
 parse_rule([], Acc) ->
     lists:reverse(Acc);
 parse_rule([{Rule, Conf} | Rules], Acc) ->
-    {_, Params} = mochijson2:decode(Conf),
+    Params = jsx:decode(list_to_binary(Conf)),
     Action = proplists:get_value(<<"action">>, Params),
     Filter = proplists:get_value(<<"topic">>, Params),
     parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).

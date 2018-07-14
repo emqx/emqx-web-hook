@@ -1,5 +1,5 @@
 %%--------------------------------------------------------------------
-%% Copyright (c) 2013-2017 EMQ Enterprise, Inc. (http://emqtt.io)
+%% Copyright (c) 2013-2018 EMQ Enterprise, Inc. (http://emqtt.io)
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -21,12 +21,17 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
+    application:ensure_all_started(hackney),
     {ok, Sup} = emqx_web_hook_sup:start_link(),
     emqx_web_hook:load(),
     emqx_web_hook_cfg:register(),
     {ok, Sup}.
 
 stop(_State) ->
+    spawn(fun() ->
+                  group_leader(whereis(init), self()),
+                  application:stop(hackney)
+          end),
     emqx_web_hook:unload(),
     emqx_web_hook_cfg:unregister(),
     ok.
