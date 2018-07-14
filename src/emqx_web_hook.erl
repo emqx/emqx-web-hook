@@ -248,9 +248,12 @@ send_http_request(Params) ->
     http_request(Method, Params1, Url).
 
 http_request(Method, Payload, Url) ->
-    Headers = [{<<"Content-Type">>, <<"application/json">>}],
+    http_request(Method, Payload, Url, []).
+
+http_request(Method, Payload, Url, Headers) ->
     Options = [{pool, default}],
-    case hackney:request(Method, Url, Headers, Payload, Options) of
+    Headers1 = [{<<"Content-Type">>, <<"application/json">>} | Headers],
+    case hackney:request(Method, Url, Headers1, Payload, Options) of
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
         _ ->
