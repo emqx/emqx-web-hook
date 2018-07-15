@@ -2,9 +2,9 @@
 emqx-web-hook
 =============
 
-EMQ X plugin to catch broker hooks through webhook.<br>
+EMQ X plugin to catch broker hooks through webhook.
 
-[http://emqtt.io](http://emqtt.io)<br>
+[http://emqtt.io](http://emqtt.io)
 
 [https://www.sakib.ninja](https://www.sakib.ninja)
 

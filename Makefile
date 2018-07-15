@@ -1,18 +1,16 @@
 PROJECT = emqx_web_hook
 PROJECT_DESCRIPTION = EMQ X Webhook Plugin
-PROJECT_VERSION = 2.4.1
+PROJECT_VERSION = 3.0
 
-DEPS = clique
-dep_clique  = git https://github.com/emqtt/clique
+DEPS = jsx clique
+dep_jsx    = git https://github.com/talentdeficit/jsx
+dep_clique = git https://github.com/emqx/clique
 
 BUILD_DEPS = emqx
-dep_emqx = git git@github.com:emqx/emqx-enterprise master
+dep_emqx = git https://github.com/emqtt/emqttd emqx30
 
 ERLC_OPTS += +debug_info
 ERLC_OPTS += +'{parse_transform, lager_transform}'
-
-TEST_DEPS = emqttc
-dep_emqttc = git https://github.com/emqtt/emqttc
 
 TEST_ERLC_OPTS += +debug_info
 TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'

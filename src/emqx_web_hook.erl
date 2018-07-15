@@ -1,5 +1,5 @@
 %%--------------------------------------------------------------------
-%% Copyright (c) 2013-2017 EMQ Enterprise, Inc. (http://emqtt.io)
+%% Copyright (c) 2013-2018 EMQ Enterprise, Inc. (http://emqtt.io)
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -244,10 +244,19 @@ send_http_request(Params) ->
     Params1 = iolist_to_binary(mochijson2:encode(Params)),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
-    case httpc:request(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], []) of
+    case request_(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], [], 0) of
         {ok, _} -> ok;
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
+    end.
+
+request_(Method, Req, HTTPOpts, Opts, Times) ->
+    %% Resend request, when TCP closed by remotely
+    case httpc:request(Method, Req, HTTPOpts, Opts) of
+        {error, socket_closed_remotely} when Times < 3 ->
+            timer:sleep(trunc(math:pow(10, Times))),
+            request_(Method, Req, HTTPOpts, Opts, Times+1);
+        Other -> Other
     end.
 
 parse_rule(Rules) ->
