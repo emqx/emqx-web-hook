@@ -1,5 +1,4 @@
-%%--------------------------------------------------------------------
-%% Copyright (c) 2013-2018 EMQ Enterprise, Inc. (http://emqtt.io)
+%% Copyright (c) 2018 EMQ Technologies Co., Ltd. All Rights Reserved.
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -12,7 +11,6 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
-%%--------------------------------------------------------------------
 
 -module(emqx_web_hook).
 
@@ -23,15 +21,12 @@
 -export([load/0, unload/0]).
 
 -export([on_client_connected/3, on_client_disconnected/3]).
-
 -export([on_client_subscribe/4, on_client_unsubscribe/4]).
-
 -export([on_session_created/3, on_session_subscribed/4, on_session_unsubscribed/4,
          on_session_terminated/4]).
-
 -export([on_message_publish/2, on_message_delivered/4, on_message_acked/4]).
 
--define(LOG(Level, Format, Args), lager:Level("WebHook: " ++ Format, Args)).
+-define(LOG(Level, Format, Args), emqx_logger:Level("WebHook: " ++ Format, Args)).
 
 load() ->
     lists:foreach(

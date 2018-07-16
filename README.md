@@ -2,11 +2,7 @@
 emqx-web-hook
 =============
 
-EMQ X plugin to catch broker hooks through webhook.
-
-[http://emqtt.io](http://emqtt.io)
-
-[https://www.sakib.ninja](https://www.sakib.ninja)
+EMQ X Webhook plugin.
 
 Setup
 -----
@@ -22,6 +18,7 @@ dep_emqx_web_hook = git git@github.com:emqx/emqx-web-hook.git master
 {emqx_webhook_plugin, load}
 
 ##### emqx_web_hook.conf
+
 ```
 web.hook.api.url = http://127.0.0.1
 
@@ -36,7 +33,6 @@ web.hook.rule.session.terminated.1   = {"action": "on_session_terminated"}
 web.hook.rule.message.publish.1      = {"action": "on_message_publish"}
 web.hook.rule.message.delivered.1    = {"action": "on_message_delivered"}
 web.hook.rule.message.acked.1        = {"action": "on_message_acked"}
-
 ```
 
 API
@@ -185,7 +181,7 @@ Author
 Contributors
 ------------
 
-* [turtleDeng](https://github.com/turtleDeng)
+* [Deng](https://github.com/turtleDeng)
 * [vishr](https://github.com/vishr)
 * [emqplus](https://github.com/emqplus)
 * [huangdan](https://github.com/huangdan)

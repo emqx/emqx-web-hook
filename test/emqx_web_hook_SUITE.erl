@@ -1,5 +1,4 @@
-%%--------------------------------------------------------------------
-%% Copyright (c) 2013-2017 EMQ Enterprise, Inc. (http://emqtt.io)
+%% Copyright (c) 2018 EMQ Technologies Co., Ltd. All Rights Reserved.
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -12,7 +11,6 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
-%%--------------------------------------------------------------------
 
 -module(emqx_web_hook_SUITE).
 
@@ -83,17 +81,11 @@ change_config(_Config) ->
     emqx_web_hook:load().
 
 case1(_Config) ->
-    {ok, C} = emqttc:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
-    timer:sleep(1000),
-    emqttc:subscribe(C, <<"TopicA">>, qos2),
-    timer:sleep(1000),
-    emqttc:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
-    timer:sleep(1000),
-    %% disconnect from broker
-    emqttc:unsubscribe(C, <<"TopicA">>),
-    timer:sleep(1000),
-    emqttc:disconnect(C),
-    timer:sleep(1000),
+    {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    emqx_client:subscribe(C, <<"TopicA">>, qos2),
+    emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
+    emqx_client:unsubscribe(C, <<"TopicA">>),
+    emqx_client:disconnect(C),
     ok.
 
 start_apps(App, DataDir) ->
