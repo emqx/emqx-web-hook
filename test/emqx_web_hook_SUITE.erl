@@ -31,12 +31,11 @@
 
 -define(HOOK_LOOKUP(H),         emqx_hooks:lookup(list_to_atom(H))).
 
-all() -> 
+all() ->
     [{group, emqx_web_hook_actions},
-     {group, emqx_web_hook}
-     ].
+     {group, emqx_web_hook}].
 
-groups() -> 
+groups() ->
     [{emqx_web_hook, [sequence], [reload, server_config, change_config]},
      {emqx_web_hook_actions, [sequence], [case1]}
     ].
@@ -51,16 +50,16 @@ end_per_suite(_Config) ->
     mochiweb:stop_http(8080),
     [application:stop(App) || App <- [emqx_web_hook, emqx]].
 
-reload(_Config) -> 
+reload(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     emqx_web_hook:unload(),
-    lists:foreach(fun({HookName, _Action}) -> 
+    lists:foreach(fun({HookName, _Action}) ->
                           ?assertEqual([], ?HOOK_LOOKUP(HookName))
                   end, Rules),
     emqx_web_hook:load(),
     lists:foreach(fun({HookName, _Action}) ->
                           [#callback{function = Fun}] = ?HOOK_LOOKUP(HookName),
-                          ?assertEqual(true, 
+                          ?assertEqual(true,
                                        string:str(erlang:fun_to_list(Fun), hooks_(HookName)) > 0)
                   end, Rules).
 
