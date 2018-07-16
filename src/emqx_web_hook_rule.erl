@@ -32,6 +32,12 @@
 
 -define(SERVER, ?MODULE).
 
+-define(WEBHOOK, <<"1">>).
+
+-define(APICLOUD, <<"2">>).
+
+-define(LEANCLOUD, <<"3">>).
+
 -record(rule, {id, type, enable, tenant_id, product_id, group_id, config}).
 
 -record(state, {server}).
@@ -182,15 +188,15 @@ unmount(Topic) ->
     [_, _, _, _|Topic1] = binary:split(Topic, <<"/">>, [global]),
     iolist_to_binary(lists:join("/", Topic1)).
 
-authorization(#{token := Token, tokenType := Type}, 1) ->
+authorization(#{token := Token, tokenType := Type}, ?WEBHOOK) ->
     [{"Authorization", binary_to_list(iolist_to_binary([Type, " ", Token]))}];
-authorization(#{appKey := AppKey, appId := AppId}, 2) ->
+authorization(#{appKey := AppKey, appId := AppId}, ?APICLOUD) ->
     [{"X-APICloud-AppId", binary_to_list(AppId)},
      {"X-APICloud-AppKey", emqx_web_hook_sha1:hexstring(binary_to_list(AppId)++
                                               "UZ"++binary_to_list(AppKey)++
                                               "UZ"++integer_to_list(emqx_time:now_ms()))
       ++"."++integer_to_list(emqx_time:now_ms())}];
-authorization(#{appKey := AppKey, appId := AppId}, 3) ->
+authorization(#{appKey := AppKey, appId := AppId}, ?LEANCLOUD) ->
     [{"X-LC-Id", binary_to_list(AppId)},
      {"X-LC-Key", binary_to_list(AppKey)}];
 authorization(_Conf,_Type) ->
