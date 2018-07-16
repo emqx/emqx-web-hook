@@ -29,6 +29,8 @@
 -export([on_session_created/3, on_session_subscribed/4, on_session_unsubscribed/4,
          on_session_terminated/4]).
 
+-export([send_http_request/1, http_request/4]).
+
 -export([on_message_publish/2, on_message_delivered/4, on_message_acked/4]).
 
 -define(LOG(Level, Format, Args), lager:Level("WebHook: " ++ Format, Args)).
@@ -252,9 +254,12 @@ send_http_request(Params) ->
     http_request(Method, Params2, Url).
 
 http_request(Method, Payload, Url) ->
-    Headers = [{<<"Content-Type">>, <<"application/json">>}],
+    http_request(Method, Payload, Url, []).
+
+http_request(Method, Payload, Url, Headers) ->
     Options = [{pool, default}],
-    case hackney:request(Method, Url, Headers, Payload, Options) of
+    Headers1 = [{<<"Content-Type">>, <<"application/json">>}| Headers],
+    case hackney:request(Method, Url, Headers1, Payload, Options) of
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
         _ ->
