@@ -261,7 +261,7 @@ http_request(Method, Payload, Url, Headers) ->
     Headers1 = [{<<"Content-Type">>, <<"application/json">>}| Headers],
     case hackney:request(Method, Url, Headers1, Payload, Options) of
         {error, Reason} ->
-            ?LOG(error, "HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
+            lager:error("HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
         _ ->
             ok
     end.
@@ -346,4 +346,3 @@ unload_(Hook, Fun, Filter) ->
         'message.acked'       -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
         'message.delivered'   -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4})
     end.
-
