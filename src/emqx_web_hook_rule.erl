@@ -227,5 +227,5 @@ merge_record_([_V1|T1], [V2|T2], Acc) ->
 merge_record_([], [], Acc) -> lists:reverse(Acc).
 
 send_http_request(Url, Headers, Params) ->
-    lager:debug("send http request url: ~p, header: ~p, params: ~s", [Url, Headers, Params]),
+    lager:debug("send http request url: ~p, header: ~p, params: ~p", [Url, Headers, Params]),
     emqx_web_hook:http_request(post, Params, Url, Headers).
