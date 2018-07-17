@@ -32,6 +32,12 @@
 
 -define(SERVER, ?MODULE).
 
+-define(WEBHOOK, <<"1">>).
+
+-define(APICLOUD, <<"2">>).
+
+-define(LEANCLOUD, <<"3">>).
+
 -record(rule, {id, type, enable, tenant_id, product_id, group_id, config}).
 
 -record(state, {server}).
@@ -54,7 +60,7 @@ update(Rule) when is_record(Rule, rule) ->
 delete(Id) ->
     gen_server:call(?SERVER, {delete, Id}).
 
-forward(Msg = #mqtt_message{topic=Topic, headers=Headers}) ->
+forward(Msg = #mqtt_message{topic=_Topic, headers=Headers}) ->
     lager:debug("emqx_web_hook_rule check forward message ~p", [Msg]),
     GroupId   = get_value(group_id, Headers),
     TenantId  = get_value(tenant_id, Headers),
@@ -62,7 +68,7 @@ forward(Msg = #mqtt_message{topic=Topic, headers=Headers}) ->
 
     Rules = ets:match_object(?TAB, #rule{tenant_id=TenantId, enable=1, _='_', type=webhook}),
     [dispatch(Type, Msg, Rule)
-      || Rule=#rule{group_id=GId, product_id=PId, config=Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
+     || Rule=#rule{group_id=GId, product_id=PId, config=_Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
 
 serialize(Id, Rule) when is_list(Rule) ->
     R = serialize(Rule), R#rule{id = Id}.
@@ -109,8 +115,8 @@ handle_call({update, Rule = #rule{id=Id}}, _From, State) ->
         [] ->
             {reply, {error, not_exist}, State};
         [OldRule] ->
-           ets:insert(?TAB, merge_record(OldRule, Rule)),
-           {reply, ok, State}
+            ets:insert(?TAB, merge_record(OldRule, Rule)),
+            {reply, ok, State}
     end;
 
 handle_call({delete, Id}, _From, State) ->
@@ -135,14 +141,14 @@ terminate(_Reason, _State) ->
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
-        {ok, State}.
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% Interval Funcs
 %%--------------------------------------------------------------------
 
-dispatch(webhook, Message, #rule{tenant_id=TId, product_id=PId, group_id=GId, config=Conf}) ->
-    #{url := Url} = Conf,
+dispatch(webhook, Message, #rule{tenant_id=_TId, product_id=PId, group_id=GId, config=Conf}) ->
+    #{url := Url, type := Type} = Conf,
     lager:debug("emqx_web_hook_rule dispatch forward message ~p to ~p", [Message, Url]),
     {FromClientId, _FromUsername} = format_from(Message#mqtt_message.from),
     case binary:split(FromClientId, <<":">>, [global]) of
@@ -155,7 +161,7 @@ dispatch(webhook, Message, #rule{tenant_id=TId, product_id=PId, group_id=GId, co
                       {retain, Message#mqtt_message.retain},
                       {payload, Message#mqtt_message.payload},
                       {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
-            send_http_request(binary_to_list(Url), authorization(Conf), Params);
+            send_http_request(Url, authorization(Conf, Type), Params);
         _ ->
             lager:error("emqx_web_hook_rule dispatch failed, unexpected clientid ~p", [FromClientId])
     end;
@@ -182,9 +188,19 @@ unmount(Topic) ->
     [_, _, _, _|Topic1] = binary:split(Topic, <<"/">>, [global]),
     iolist_to_binary(lists:join("/", Topic1)).
 
-authorization(#{token := Token, tokenType := Type}) ->
-    [{"Authorization", binary_to_list(iolist_to_binary([Type, " ", Token]))}];
-authorization(_Conf) ->
+authorization(#{token := Token, type := Type}, ?WEBHOOK) ->
+    [{<<"Authorization">>, iolist_to_binary([Type, " ", Token])}];
+authorization(#{appKey := AppKey, appId := AppId}, ?APICLOUD) ->
+    [{<<"X-APICloud-AppId">>, AppId},
+     {<<"X-APICloud-AppKey">>, erlang:list_to_binary(
+                                 emqx_web_hook_sha1:hexstring(binary_to_list(AppId)++
+                                                                  "UZ"++binary_to_list(AppKey)++
+                                                                  "UZ"++integer_to_list(emqx_time:now_ms()))
+                                 ++"."++integer_to_list(emqx_time:now_ms()))}];
+authorization(#{appKey := AppKey, appId := AppId}, ?LEANCLOUD) ->
+    [{<<"X-LC-Id">>, AppId},
+     {<<"X-LC-Key">>, AppKey}];
+authorization(_Conf,_Type) ->
     [].
 
 format_from({ClientId, Username}) ->
@@ -212,10 +228,5 @@ merge_record_([], [], Acc) -> lists:reverse(Acc).
 
 send_http_request(Url, Headers, Params) ->
     Params1 = iolist_to_binary(mochijson2:encode(Params)),
-    lager:debug("send http request url: ~p, header: ~p, params: ~s", [Url, Headers, Params1]),
-    case httpc:request(post, {Url, Headers, "application/json", Params1}, [{timeout, 5000}], []) of
-        {ok, _} -> ok;
-        {error, Reason} ->
-            lager:error("HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
-    end.
-
+    lager:debug("send http request url: ~p, header: ~p, params: ~p", [Url, Headers, Params1]),
+    emqx_web_hook:http_request(post, Params1, Url, Headers).
