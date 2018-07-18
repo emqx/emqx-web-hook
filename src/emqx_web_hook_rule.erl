@@ -32,11 +32,11 @@
 
 -define(SERVER, ?MODULE).
 
--define(WEBHOOK, <<"1">>).
+-define(WEBHOOK, 1).
 
--define(APICLOUD, <<"2">>).
+-define(APICLOUD, 2).
 
--define(LEANCLOUD, <<"3">>).
+-define(LEANCLOUD, 3).
 
 -record(rule, {id, type, enable, tenant_id, product_id, group_id, config}).
 
@@ -149,7 +149,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 dispatch(webhook, Message, #rule{tenant_id=_TId, product_id=PId, group_id=GId, config=Conf}) ->
     #{url := Url, type := Type} = Conf,
-    lager:debug("emqx_web_hook_rule dispatch forward message ~p to ~p", [Message, Url]),
+    lager:debug("emqx_web_hook_rule dispatch forward ~p message ~p to ~p", [Type, Message, Url]),
     {FromClientId, _FromUsername} = format_from(Message#mqtt_message.from),
     case binary:split(FromClientId, <<":">>, [global]) of
         [_,_,DeviceId] ->
@@ -191,12 +191,16 @@ unmount(Topic) ->
 authorization(#{token := Token, type := Type}, ?WEBHOOK) ->
     [{<<"Authorization">>, iolist_to_binary([Type, " ", Token])}];
 authorization(#{appKey := AppKey, appId := AppId}, ?APICLOUD) ->
+    TimeNow = integer_to_list(emqx_time:now_ms()),
     [{<<"X-APICloud-AppId">>, AppId},
      {<<"X-APICloud-AppKey">>, erlang:list_to_binary(
-                                 emqx_web_hook_sha1:hexstring(binary_to_list(AppId)++
-                                                                  "UZ"++binary_to_list(AppKey)++
-                                                                  "UZ"++integer_to_list(emqx_time:now_ms()))
-                                 ++"."++integer_to_list(emqx_time:now_ms()))}];
+                                 string:to_lower(
+                                   emqx_web_hook_sha1:hexstring(binary_to_list(AppId)++
+                                                                    "UZ"++binary_to_list(AppKey)++
+                                                                    "UZ"++TimeNow)
+                                   ++"."++TimeNow)
+                                )
+     }];
 authorization(#{appKey := AppKey, appId := AppId}, ?LEANCLOUD) ->
     [{<<"X-LC-Id">>, AppId},
      {<<"X-LC-Key">>, AppKey}];
