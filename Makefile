@@ -1,10 +1,10 @@
 PROJECT = emq_web_hook
 PROJECT_DESCRIPTION = EMQ Webhook Plugin
-PROJECT_VERSION = 2.3.10
+PROJECT_VERSION = 2.3.11
 
 DEPS = jsx clique
-dep_jsx    = git https://github.com/talentdeficit/jsx
-dep_clique = git https://github.com/emqtt/clique
+dep_jsx    = git https://github.com/talentdeficit/jsx v2.8.3
+dep_clique = git https://github.com/emqtt/clique v0.3.10
 
 BUILD_DEPS = emqttd
 dep_emqttd = git https://github.com/emqtt/emqttd develop
