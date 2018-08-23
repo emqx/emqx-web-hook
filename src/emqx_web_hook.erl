@@ -239,26 +239,25 @@ on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Fi
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
-
 send_http_request(Params) ->
-    Params1 = jsx:encode(Params),
+    Params1 = iolist_to_binary(mochijson2:encode(Params)),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
-    Method = post,
-    http_request(Method, Params1, Url).
-
-http_request(Method, Payload, Url) ->
-    http_request(Method, Payload, Url, []).
-
-http_request(Method, Payload, Url, Headers) ->
-    Options = [{pool, default}],
-    Headers1 = [{<<"Content-Type">>, <<"application/json">>} | Headers],
-    case hackney:request(Method, Url, Headers1, Payload, Options) of
+    case request_(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], [], 0) of
+        {ok, _} -> ok;
         {error, Reason} ->
-            ?LOG(error, "HTTP request error: ~p", [Reason]), ok; %% TODO: return ok?
-        _ ->
-            ok
+            ?LOG(error, "HTTP request error: ~p", [Reason]), ok %% TODO: return ok?
     end.
+
+request_(Method, Req, HTTPOpts, Opts, Times) ->
+    %% Resend request, when TCP closed by remotely
+    case httpc:request(Method, Req, HTTPOpts, Opts) of
+        {error, socket_closed_remotely} when Times < 3 ->
+            timer:sleep(trunc(math:pow(10, Times))),
+            request_(Method, Req, HTTPOpts, Opts, Times+1);
+        Other -> Other
+    end.
+
 
 parse_rule(Rules) ->
     parse_rule(Rules, []).
