@@ -44,7 +44,7 @@ unload() ->
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(0, Client = #mqtt_client{client_id = ClientId, username = Username}, _Env) ->
+on_client_connected(0, Client = #client{id = ClientId, username = Username}, _Env) ->
     Params = [{action, client_connected},
               {client_id, ClientId},
               {username, Username},
@@ -52,18 +52,18 @@ on_client_connected(0, Client = #mqtt_client{client_id = ClientId, username = Us
     send_http_request(Params),
     {ok, Client};
 
-on_client_connected(_, Client = #mqtt_client{}, _Env) ->
+on_client_connected(_, Client = #client{}, _Env) ->
     {ok, Client}.
 
 %%--------------------------------------------------------------------
 %% Client disconnected
 %%--------------------------------------------------------------------
 
-on_client_disconnected(auth_failure, #mqtt_client{}, _Env) ->
+on_client_disconnected(auth_failure, #client{}, _Env) ->
     ok;
 on_client_disconnected({shutdown, Reason}, Client, Env) when is_atom(Reason) ->
     on_client_disconnected(Reason, Client, Env);
-on_client_disconnected(Reason, _Client = #mqtt_client{client_id = ClientId, username = Username}, _Env)
+on_client_disconnected(Reason, _Client = #client{id = ClientId, username = Username}, _Env)
     when is_atom(Reason) ->
     Params = [{action, client_disconnected},
               {client_id, ClientId},
@@ -171,20 +171,20 @@ on_session_terminated(_ClientId, _Username, Reason, _Env) ->
 %% Message publish
 %%--------------------------------------------------------------------
 
-on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
+on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
-on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
+on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
     with_filter(
       fun() ->
-        {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
+        {FromClientId, FromUsername} = format_from(Message#message.from),
         Params = [{action, message_publish},
                   {from_client_id, FromClientId},
                   {from_username, FromUsername},
-                  {topic, Message#mqtt_message.topic},
-                  {qos, Message#mqtt_message.qos},
-                  {retain, Message#mqtt_message.retain},
-                  {payload, Message#mqtt_message.payload},
-                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
+                  {topic, Message#message.topic},
+                  {qos, Message#message.qos},
+                  {retain, Retain},
+                  {payload, Message#message.payload},
+                  {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params),
         {ok, Message}
       end, Message, Topic, Filter).
@@ -193,20 +193,20 @@ on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
 %% Message delivered
 %%--------------------------------------------------------------------
 
-on_message_delivered(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Filter}) ->
+on_message_delivered(ClientId, Username, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
   with_filter(
     fun() ->
-      {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
+      {FromClientId, FromUsername} = format_from(Message#message.from),
       Params = [{action, message_delivered},
                 {client_id, ClientId},
                 {username, Username},
                 {from_client_id, FromClientId},
                 {from_username, FromUsername},
-                {topic, Message#mqtt_message.topic},
-                {qos, Message#mqtt_message.qos},
-                {retain, Message#mqtt_message.retain},
-                {payload, Message#mqtt_message.payload},
-                {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
+                {topic, Message#message.topic},
+                {qos, Message#message.qos},
+                {retain, Retain},
+                {payload, Message#message.payload},
+                {ts, emqx_time:now_secs(Message#message.timestamp)}],
       send_http_request(Params)
     end, Topic, Filter).
 
@@ -214,20 +214,20 @@ on_message_delivered(ClientId, Username, Message = #mqtt_message{topic = Topic},
 %% Message acked
 %%--------------------------------------------------------------------
 
-on_message_acked(ClientId, Username, Message = #mqtt_message{topic = Topic}, {Filter}) ->
+on_message_acked(ClientId, Username, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
     with_filter(
       fun() ->
-        {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
+        {FromClientId, FromUsername} = format_from(Message#message.from),
         Params = [{action, message_acked},
                   {client_id, ClientId},
                   {username, Username},
                   {from_client_id, FromClientId},
                   {from_username, FromUsername},
-                  {topic, Message#mqtt_message.topic},
-                  {qos, Message#mqtt_message.qos},
-                  {retain, Message#mqtt_message.retain},
-                  {payload, Message#mqtt_message.payload},
-                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
+                  {topic, Message#message.topic},
+                  {qos, Message#message.qos},
+                  {retain, Retain},
+                  {payload, Message#message.payload},
+                  {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params)
       end, Topic, Filter).
 
