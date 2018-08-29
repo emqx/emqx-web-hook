@@ -20,11 +20,11 @@
 
 -export([load/0, unload/0]).
 
--export([on_client_connected/3, on_client_disconnected/3]).
--export([on_client_subscribe/4, on_client_unsubscribe/4]).
+-export([on_client_connected/4, on_client_disconnected/3]).
+-export([on_client_subscribe/3, on_client_unsubscribe/3]).
 -export([on_session_created/3, on_session_subscribed/4, on_session_unsubscribed/4,
-         on_session_terminated/4]).
--export([on_message_publish/2, on_message_delivered/4, on_message_acked/4]).
+         on_session_terminated/3]).
+-export([on_message_publish/2, on_message_delivered/3, on_message_acked/3]).
 
 -define(LOG(Level, Format, Args), emqx_logger:Level("WebHook: " ++ Format, Args)).
 
@@ -44,26 +44,26 @@ unload() ->
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(0, Client = #client{id = ClientId, username = Username}, _Env) ->
+on_client_connected(#{client_id := ClientId, username := Username}, 0, _ConnInfo, _Env) ->
     Params = [{action, client_connected},
               {client_id, ClientId},
               {username, Username},
               {conn_ack, 0}],
     send_http_request(Params),
-    {ok, Client};
+    ok;
 
-on_client_connected(_, Client = #client{}, _Env) ->
-    {ok, Client}.
+on_client_connected(#{}, _ConnAck, _ConnInfo, _Env) ->
+    ok.
 
 %%--------------------------------------------------------------------
 %% Client disconnected
 %%--------------------------------------------------------------------
 
-on_client_disconnected(auth_failure, #client{}, _Env) ->
+on_client_disconnected(#{}, auth_failure, _Env) ->
     ok;
-on_client_disconnected({shutdown, Reason}, Client, Env) when is_atom(Reason) ->
+on_client_disconnected(Client, {shutdown, Reason}, Env) when is_atom(Reason) ->
     on_client_disconnected(Reason, Client, Env);
-on_client_disconnected(Reason, _Client = #client{id = ClientId, username = Username}, _Env)
+on_client_disconnected(#{client_id := ClientId, username := Username}, Reason, _Env)
     when is_atom(Reason) ->
     Params = [{action, client_disconnected},
               {client_id, ClientId},
@@ -71,7 +71,7 @@ on_client_disconnected(Reason, _Client = #client{id = ClientId, username = Usern
               {reason, Reason}],
     send_http_request(Params),
     ok;
-on_client_disconnected(Reason, _Client, _Env) ->
+on_client_disconnected(_, Reason, _Env) ->
     ?LOG(error, "Client disconnected, cannot encode reason: ~p", [Reason]),
     ok.
 
@@ -79,7 +79,7 @@ on_client_disconnected(Reason, _Client, _Env) ->
 %% Client subscribe
 %%--------------------------------------------------------------------
 
-on_client_subscribe(ClientId, Username, TopicTable, {Filter}) ->
+on_client_subscribe(#{client_id := ClientId, username := Username}, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
       with_filter(
         fun() ->
@@ -96,7 +96,7 @@ on_client_subscribe(ClientId, Username, TopicTable, {Filter}) ->
 %% Client unsubscribe
 %%--------------------------------------------------------------------
 
-on_client_unsubscribe(ClientId, Username, TopicTable, {Filter}) ->
+on_client_unsubscribe(#{client_id := ClientId, username := Username}, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
       with_filter(
         fun() ->
@@ -113,10 +113,10 @@ on_client_unsubscribe(ClientId, Username, TopicTable, {Filter}) ->
 %% Session created
 %%--------------------------------------------------------------------
 
-on_session_created(ClientId, Username, _Env) ->
+on_session_created(#{client_id := ClientId}, SessInfo, _Env) ->
     Params = [{action, session_created},
               {client_id, ClientId},
-              {username, Username}],
+              {username, proplists:get_value(username, SessInfo)}],
     send_http_request(Params),
     ok.
 
@@ -124,12 +124,11 @@ on_session_created(ClientId, Username, _Env) ->
 %% Session subscribed
 %%--------------------------------------------------------------------
 
-on_session_subscribed(ClientId, Username, {Topic, Opts}, {Filter}) ->
+on_session_subscribed(#{client_id := ClientId}, Topic, Opts, {Filter}) ->
     with_filter(
       fun() ->
         Params = [{action, session_subscribed},
                   {client_id, ClientId},
-                  {username, Username},
                   {topic, Topic},
                   {opts, Opts}],
         send_http_request(Params)
@@ -139,12 +138,11 @@ on_session_subscribed(ClientId, Username, {Topic, Opts}, {Filter}) ->
 %% Session unsubscribed
 %%--------------------------------------------------------------------
 
-on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, {Filter}) ->
+on_session_unsubscribed(#{client_id := ClientId}, Topic, _Opts, {Filter}) ->
     with_filter(
       fun() ->
         Params = [{action, session_unsubscribed},
                   {client_id, ClientId},
-                  {username, Username},
                   {topic, Topic}],
         send_http_request(Params)
       end, Topic, Filter).
@@ -153,17 +151,15 @@ on_session_unsubscribed(ClientId, Username, {Topic, _Opts}, {Filter}) ->
 %% Session terminated
 %%--------------------------------------------------------------------
 
-on_session_terminated(ClientId, Username, {shutdown, Reason}, Env) when is_atom(Reason) ->
-    on_session_terminated(ClientId, Username, Reason, Env);
-on_session_terminated(ClientId, Username, Reason, _Env)
-    when is_atom(Reason) ->
+on_session_terminated(Info, {shutdown, Reason}, Env) when is_atom(Reason) ->
+    on_session_terminated(Info, Reason, Env);
+on_session_terminated(#{client_id := ClientId}, Reason, _Env) when is_atom(Reason) ->
     Params = [{action, session_terminated},
               {client_id, ClientId},
-              {username, Username},
               {reason, Reason}],
     send_http_request(Params),
     ok;
-on_session_terminated(_ClientId, _Username, Reason, _Env) ->
+on_session_terminated(#{}, Reason, _Env) ->
     ?LOG(error, "Session terminated, cannot encode the reason: ~p", [Reason]),
     ok.
 
@@ -193,7 +189,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
 %% Message delivered
 %%--------------------------------------------------------------------
 
-on_message_delivered(ClientId, Username, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_delivered(#{client_id := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
   with_filter(
     fun() ->
       {FromClientId, FromUsername} = format_from(Message#message.from),
@@ -214,13 +210,12 @@ on_message_delivered(ClientId, Username, Message = #message{topic = Topic, flags
 %% Message acked
 %%--------------------------------------------------------------------
 
-on_message_acked(ClientId, Username, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_acked(#{client_id := ClientId}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
     with_filter(
       fun() ->
         {FromClientId, FromUsername} = format_from(Message#message.from),
         Params = [{action, message_acked},
                   {client_id, ClientId},
-                  {username, Username},
                   {from_client_id, FromClientId},
                   {from_username, FromUsername},
                   {topic, Message#message.topic},
@@ -236,7 +231,7 @@ on_message_acked(ClientId, Username, Message = #message{topic = Topic, flags = #
 %%--------------------------------------------------------------------
 
 send_http_request(Params) ->
-    Params1 = iolist_to_binary(mochijson2:encode(Params)),
+    Params1 = jsx:encode(Params),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
     case request_(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], [], 0) of
@@ -259,7 +254,7 @@ parse_rule(Rules) ->
 parse_rule([], Acc) ->
     lists:reverse(Acc);
 parse_rule([{Rule, Conf} | Rules], Acc) ->
-    {_, Params} = mochijson2:decode(Conf),
+    Params = jsx:decode(iolist_to_binary(Conf)),
     Action = proplists:get_value(<<"action">>, Params),
     Filter = proplists:get_value(<<"topic">>, Params),
     parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).
@@ -291,31 +286,31 @@ a2b(A) -> erlang:atom_to_binary(A, utf8).
 
 load_(Hook, Fun, Filter, Params) ->
     case Hook of
-        'client.connected'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
+        'client.connected'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
         'client.disconnected' -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'client.subscribe'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'client.unsubscribe'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'client.subscribe'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
+        'client.unsubscribe'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
         'session.created'     -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
         'session.subscribed'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
         'session.unsubscribed'-> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'session.terminated'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
+        'session.terminated'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
         'message.publish'     -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/2}, [Params]);
-        'message.acked'       -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'message.delivered'   -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params])
+        'message.acked'       -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
+        'message.delivered'   -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params])
     end.
 
 unload_(Hook, Fun, Filter) ->
     case Hook of
-        'client.connected'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
+        'client.connected'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
         'client.disconnected' -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'client.subscribe'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'client.unsubscribe'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'client.subscribe'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
+        'client.unsubscribe'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
         'session.created'     -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
         'session.subscribed'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
         'session.unsubscribed'-> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'session.terminated'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
+        'session.terminated'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
         'message.publish'     -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/2});
-        'message.acked'       -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'message.delivered'   -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4})
+        'message.acked'       -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
+        'message.delivered'   -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3})
     end.
 
