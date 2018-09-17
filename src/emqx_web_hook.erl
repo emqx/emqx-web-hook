@@ -286,31 +286,31 @@ a2b(A) -> erlang:atom_to_binary(A, utf8).
 
 load_(Hook, Fun, Filter, Params) ->
     case Hook of
-        'client.connected'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'client.disconnected' -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'client.subscribe'    -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'client.unsubscribe'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'session.created'     -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'session.subscribed'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'session.unsubscribed'-> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/4}, [Params]);
-        'session.terminated'  -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'message.publish'     -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/2}, [Params]);
-        'message.acked'       -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params]);
-        'message.delivered'   -> emqx:hook(Hook, {Filter, fun ?MODULE:Fun/3}, [Params])
+        'client.connected'    -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
+        'client.disconnected' -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'client.subscribe'    -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'client.unsubscribe'  -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'session.created'     -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'session.subscribed'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
+        'session.unsubscribed'-> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
+        'session.terminated'  -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'message.publish'     -> emqx:hook(Hook, fun ?MODULE:Fun/2, [Params]);
+        'message.acked'       -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'message.delivered'   -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
     end.
 
 unload_(Hook, Fun, Filter) ->
     case Hook of
-        'client.connected'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'client.disconnected' -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'client.subscribe'    -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'client.unsubscribe'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'session.created'     -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'session.subscribed'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'session.unsubscribed'-> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/4});
-        'session.terminated'  -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'message.publish'     -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/2});
-        'message.acked'       -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3});
-        'message.delivered'   -> emqx:unhook(Hook, {Filter, fun ?MODULE:Fun/3})
+        'client.connected'    -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
+        'client.disconnected' -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'client.subscribe'    -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'client.unsubscribe'  -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'session.created'     -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'session.subscribed'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
+        'session.unsubscribed'-> emqx:unhook(Hook, fun ?MODULE:Fun/4);
+        'session.terminated'  -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'message.publish'     -> emqx:unhook(Hook, fun ?MODULE:Fun/2);
+        'message.acked'       -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'message.delivered'   -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
     end.
 
