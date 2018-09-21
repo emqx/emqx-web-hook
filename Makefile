@@ -5,7 +5,7 @@ PROJECT_VERSION = 2.4.2
 DEPS = jsx clique hackney
 dep_jsx    = git https://github.com/talentdeficit/jsx
 dep_clique = git https://github.com/emqtt/clique
-dep_hackney = git git@github.com:benoitc/hackney
+dep_hackney = git git@github.com:benoitc/hackney 1.13.0
 
 BUILD_DEPS = emqx
 dep_emqx = git git@github.com:emqx/emqx-enterprise master
