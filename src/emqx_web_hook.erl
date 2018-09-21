@@ -257,7 +257,14 @@ http_request(Method, Payload, Url) ->
     http_request(Method, Payload, Url, []).
 
 http_request(Method, Payload, Url, Headers) ->
-    Options = [{pool, default}],
+    Options = [{pool, default},
+            {connect_timeout, 10000}, %% timeout used when establishing the TCP connections
+            {recv_timeout, 30000},    %% timeout used when waiting for responses from peer
+            {timeout, 150000}, %% how long the connection will be kept in the pool before dropped
+            {follow_redirect, true},
+            {max_redirect, 5},
+            with_body
+            ],
     Headers1 = [{<<"Content-Type">>, <<"application/json">>}| Headers],
     case hackney:request(Method, Url, Headers1, Payload, Options) of
         {error, Reason} ->
