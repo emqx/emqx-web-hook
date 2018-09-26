@@ -36,7 +36,7 @@ all() ->
      {group, emqx_web_hook}].
 
 groups() ->
-    [{emqx_web_hook, [sequence], [reload, server_config, change_config]},
+    [{emqx_web_hook, [sequence], [reload, change_config]},
      {emqx_web_hook_actions, [sequence], [case1]}
     ].
 
@@ -47,20 +47,20 @@ init_per_suite(Config) ->
     Config.
 
 end_per_suite(_Config) ->
-    mochiweb:stop_http(8080),
+    http_server:stop_http(),
     [application:stop(App) || App <- [emqx_web_hook, emqx]].
 
 reload(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     emqx_web_hook:unload(),
+    timer:sleep(10),
     lists:foreach(fun({HookName, _Action}) ->
                           ?assertEqual([], ?HOOK_LOOKUP(HookName))
                   end, Rules),
     emqx_web_hook:load(),
     lists:foreach(fun({HookName, _Action}) ->
-                          [#callback{function = Fun}] = ?HOOK_LOOKUP(HookName),
-                          ?assertEqual(true,
-                                       string:str(erlang:fun_to_list(Fun), hooks_(HookName)) > 0)
+                          Hooks  = ?HOOK_LOOKUP(HookName),
+                          ?assertEqual(true, length(Hooks) > 0)
                   end, Rules).
 
 server_config(_) ->
@@ -80,7 +80,7 @@ change_config(_Config) ->
     emqx_web_hook:load().
 
 case1(_Config) ->
-    {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    {ok, C, _} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
     emqx_client:subscribe(C, <<"TopicA">>, qos2),
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
@@ -99,9 +99,4 @@ hooks_(HookName) ->
     string:join(lists:append(["on"], string:tokens(HookName, ".")), "_").
 
 start_http_() ->
-     mochiweb:start_http(8080, [{max_clients, 1024}, {acceptors, 2}],
-                        {?MODULE, handle, []}).
-handle(Req) ->
-    %%ct:log("Req:~p~n", [Req:recv_body()]),
-    Req:respond({200, [{"Content-Type", "application/json"}], []}).
-
+    http_server:start_http().
