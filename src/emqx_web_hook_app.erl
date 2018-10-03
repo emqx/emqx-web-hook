@@ -18,6 +18,8 @@
 
 -behaviour(application).
 
+-include("emqx_web_hook.hrl").
+
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
@@ -32,6 +34,9 @@ stop(_State) ->
                   group_leader(whereis(init), self()),
                   application:stop(hackney)
           end),
-    emqx_web_hook:unload(),
+    lists:foreach(fun(#rule{tenant_id = TenantId}) ->
+        emqx_web_hook:unload(<<"+/", TenantId/binary, "/#">>),
+        ok
+    end, ets:tab2list(mqtt_rule)),
     emqx_web_hook_cfg:unregister(),
     ok.

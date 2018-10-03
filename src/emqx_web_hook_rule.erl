@@ -20,6 +20,8 @@
 
 -include_lib("emqx/include/emqx.hrl").
 
+-include("emqx_web_hook.hrl").
+
 %% API
 -export([start_link/0, insert/1, update/1, delete/1, forward/1,
          serialize/1, serialize/2]).
@@ -37,8 +39,6 @@
 -define(APICLOUD, 2).
 
 -define(LEANCLOUD, 3).
-
--record(rule, {id, type, enable, tenant_id, product_id, group_id, config}).
 
 -record(state, {server}).
 
@@ -101,12 +101,13 @@ init([]) ->
     Server = application:get_env(emqx_web_hook, actor_server, ""),
     {ok, #state{server = Server}}.
 
-handle_call({insert, Rule = #rule{id=Id}}, _From, State) ->
+handle_call({insert, Rule = #rule{id=Id, tenant_id = TenantId}}, _From, State) ->
     case ets:lookup(?TAB, Id) of
         [_Rule] ->
             {reply, {error, has_existed}, State};
         [] ->
             ets:insert(?TAB, Rule),
+            emqx_web_hook:load(<<"+/", TenantId/binary, "/#">>),
             {reply, ok, State}
     end;
 
@@ -120,7 +121,14 @@ handle_call({update, Rule = #rule{id=Id}}, _From, State) ->
     end;
 
 handle_call({delete, Id}, _From, State) ->
-    ets:delete(?TAB, Id),
+    case ets:lookup(?TAB, Id) of
+        [#rule{tenant_id = TenantId}] ->
+            ets:delete(?TAB, Id),
+            emqx_web_hook:unload(<<"+/", TenantId/binary, "/#">>),
+            ok;
+        [] ->
+            ok
+    end,
     {reply, ok, State};
 
 handle_call(_Request, _From, State) ->
@@ -128,7 +136,11 @@ handle_call(_Request, _From, State) ->
     {reply, Reply, State}.
 
 handle_cast(get_all_rule, State = #state{server=Server}) ->
-    ets:insert(?TAB, request_all_rule(Server)),
+    lists:foreach(fun(Rule = #rule{tenant_id = TenantId}) ->
+        ets:insert(?TAB, Rule),
+        emqx_web_hook:load(<<"+/", TenantId/binary, "/#">>),
+        ok
+    end, request_all_rule(Server)),
     {noreply, State};
 
 handle_cast(_Msg, State) ->

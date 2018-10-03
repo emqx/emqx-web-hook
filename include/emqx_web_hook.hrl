@@ -1,0 +1,1 @@
+-record(rule, {id, type, enable, tenant_id, product_id, group_id, config}).

@@ -20,7 +20,7 @@
 
 -define(APP, emqx_web_hook).
 
--export([load/0, unload/0]).
+-export([load/1, unload/1]).
 
 -export([on_client_connected/3, on_client_disconnected/3]).
 
@@ -35,17 +35,11 @@
 
 -define(LOG(Level, Format, Args), lager:Level("WebHook: " ++ Format, Args)).
 
-load() ->
-    lists:foreach(
-      fun({Hook, Fun, Filter}) ->
-        load_(Hook, binary_to_atom(Fun, utf8), Filter, {Filter})
-      end, parse_rule(application:get_env(?APP, rules, []))).
+load(Filter) ->
+    load_('message.publish', on_message_publish, Filter, {Filter}).
 
-unload() ->
-    lists:foreach(
-      fun({Hook, Fun, Filter}) ->
-          unload_(Hook, binary_to_atom(Fun, utf8), Filter)
-      end, parse_rule(application:get_env(?APP, rules, []))).
+unload(Filter) ->
+    unload_('message.publish', on_message_publish, Filter).
 
 %%--------------------------------------------------------------------
 %% Client connected
@@ -181,21 +175,11 @@ on_session_terminated(_ClientId, _Username, Reason, _Env) ->
 on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
 on_message_publish(Message = #mqtt_message{topic = Topic}, {Filter}) ->
-    emqx_web_hook_rule:forward(Message),
-    with_filter(
-      fun() ->
-        {FromClientId, FromUsername} = format_from(Message#mqtt_message.from),
-        Params = [{action, message_publish},
-                  {from_client_id, FromClientId},
-                  {from_username, FromUsername},
-                  {topic, Message#mqtt_message.topic},
-                  {qos, Message#mqtt_message.qos},
-                  {retain, Message#mqtt_message.retain},
-                  {payload, Message#mqtt_message.payload},
-                  {ts, emqx_time:now_secs(Message#mqtt_message.timestamp)}],
-        send_http_request(Params),
+    with_filter(fun()->
+        emqx_web_hook_rule:forward(Message),
         {ok, Message}
-      end, Message, Topic, Filter).
+    end, Message, Topic, Filter).
+
 
 %%--------------------------------------------------------------------
 %% Message delivered
@@ -286,15 +270,15 @@ check_body(Headers, [Key | Rest], Acc) ->
         false          -> check_body(Headers, Rest, Acc)
     end.
 
-parse_rule(Rules) ->
-    parse_rule(Rules, []).
-parse_rule([], Acc) ->
-    lists:reverse(Acc);
-parse_rule([{Rule, Conf} | Rules], Acc) ->
-    Params = jsx:decode(list_to_binary(Conf)),
-    Action = proplists:get_value(<<"action">>, Params),
-    Filter = proplists:get_value(<<"topic">>, Params),
-    parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).
+% parse_rule(Rules) ->
+%     parse_rule(Rules, []).
+% parse_rule([], Acc) ->
+%     lists:reverse(Acc);
+% parse_rule([{Rule, Conf} | Rules], Acc) ->
+%     Params = jsx:decode(list_to_binary(Conf)),
+%     Action = proplists:get_value(<<"action">>, Params),
+%     Filter = proplists:get_value(<<"topic">>, Params),
+%     parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).
 
 with_filter(Fun, _, undefined) ->
     Fun(), ok;
