@@ -25,7 +25,6 @@
 start(_StartType, _StartArgs) ->
     application:ensure_all_started(hackney),
     {ok, Sup} = emqx_web_hook_sup:start_link(),
-    emqx_web_hook:load(),
     emqx_web_hook_cfg:register(),
     {ok, Sup}.
 
