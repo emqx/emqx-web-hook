@@ -10,10 +10,8 @@ BUILD_DEPS = emqx
 dep_emqx = git https://github.com/emqtt/emqttd emqx30
 
 ERLC_OPTS += +debug_info
-ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 TEST_ERLC_OPTS += +debug_info
-TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 COVER = true
 
