@@ -80,7 +80,8 @@ change_config(_Config) ->
     emqx_web_hook:load().
 
 case1(_Config) ->
-    {ok, C, _} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    {ok, _} = emqx_client:connect(C),
     emqx_client:subscribe(C, <<"TopicA">>, qos2),
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
