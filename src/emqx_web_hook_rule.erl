@@ -138,7 +138,7 @@ handle_call(_Request, _From, State) ->
 handle_cast(get_all_rule, State = #state{server=Server}) ->
     lists:foreach(fun(Rule = #rule{tenant_id = TenantId}) ->
         ets:insert(?TAB, Rule),
-        emqx_web_hook:load(<<"+/", TenantId/binary, "/#">>),
+        emqx_web_hook:load(<<"up/+/", TenantId/binary, "/#">>),
         ok
     end, request_all_rule(Server)),
     {noreply, State};
