@@ -68,7 +68,7 @@ forward(Msg = #mqtt_message{topic=_Topic, headers=Headers}) ->
 
     Rules = ets:match_object(?TAB, #rule{tenant_id=TenantId, enable=1, _='_', type=webhook}),
     [dispatch(Type, Msg, Rule)
-     || Rule=#rule{group_id=GId, product_id=PId, config=_Config, type=Type} <- Rules, (GId =:= GroupId orelse PId =:= ProductId)].
+     || Rule=#rule{group_id=GId, product_id=PId, config=_Config, type=Type} <- Rules, PId =:= ProductId].
 
 serialize(Id, Rule) when is_list(Rule) ->
     R = serialize(Rule), R#rule{id = Id}.
@@ -197,7 +197,7 @@ request_all_rule(Url) ->
 
 unmount(Topic) ->
     %% Topic = <<"tenants/CSX9Rh2lL/products/P3gKub/test">>
-    [_, _, _, _|Topic1] = binary:split(Topic, <<"/">>, [global]),
+    [_, _, _, _, _|Topic1] = binary:split(Topic, <<"/">>, [global]),
     iolist_to_binary(lists:join("/", Topic1)).
 
 authorization(#{token := Token, type := Type}, ?WEBHOOK) ->
