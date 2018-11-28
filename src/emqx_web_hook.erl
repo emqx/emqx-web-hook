@@ -172,7 +172,7 @@ on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
 on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
     with_filter(
       fun() ->
-        {FromClientId, FromUsername} = format_from(Message#message.from),
+        {FromClientId, FromUsername} = format_from(Message),
         Params = [{action, message_publish},
                   {from_client_id, FromClientId},
                   {from_username, FromUsername},
@@ -192,7 +192,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
 on_message_delivered(#{client_id := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
   with_filter(
     fun() ->
-      {FromClientId, FromUsername} = format_from(Message#message.from),
+      {FromClientId, FromUsername} = format_from(Message),
       Params = [{action, message_delivered},
                 {client_id, ClientId},
                 {username, Username},
@@ -213,7 +213,7 @@ on_message_delivered(#{client_id := ClientId, username := Username}, Message = #
 on_message_acked(#{client_id := ClientId}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
     with_filter(
       fun() ->
-        {FromClientId, FromUsername} = format_from(Message#message.from),
+        {FromClientId, FromUsername} = format_from(Message),
         Params = [{action, message_acked},
                   {client_id, ClientId},
                   {from_client_id, FromClientId},
@@ -275,12 +275,10 @@ with_filter(Fun, Msg, Topic, Filter) ->
         false -> {ok, Msg}
     end.
 
-format_from({ClientId, Username}) ->
-    {ClientId, Username};
-format_from(From) when is_atom(From) ->
-    {a2b(From), a2b(From)};
-format_from(_) ->
-    {<<>>, <<>>}.
+format_from(Message = #message{from = From}) when is_atom(From) ->
+    format_from(Message#message{from = a2b(From)});
+format_from(#message{from = ClientId, headers = #{username := Username}}) ->
+    {ClientId, Username}.
 
 a2b(A) -> erlang:atom_to_binary(A, utf8).
 
