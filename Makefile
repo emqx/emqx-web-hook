@@ -4,7 +4,7 @@ PROJECT_VERSION = 3.0
 
 DEPS = jsx clique
 dep_jsx    = git-emqx https://github.com/talentdeficit/jsx v2.9.0
-dep_clique = git-emqx https://github.com/emqx/clique develop
+dep_clique = git-emqx https://github.com/emqx/clique v0.3.11
 
 BUILD_DEPS = emqx
 dep_emqx = git-emqx https://github.com/emqx/emqx emqx30
@@ -15,11 +15,7 @@ TEST_ERLC_OPTS += +debug_info
 
 COVER = true
 
-define dep_fetch_git-emqx
-	git clone -q --depth 1 -b $(call dep_commit,$(1)) -- $(call dep_repo,$(1)) $(DEPS_DIR)/$(call dep_name,$(1)) > /dev/null 2>&1; \
-	cd $(DEPS_DIR)/$(call dep_name,$(1));
-endef
-
+$(shell [ -f erlang.mk ] || curl -s -o erlang.mk https://raw.githubusercontent.com/emqx/erlmk/master/erlang.mk)
 include erlang.mk
 
 CUTTLEFISH_SCRIPT = _build/default/lib/cuttlefish/cuttlefish
