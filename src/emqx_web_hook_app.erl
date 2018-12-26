@@ -1,5 +1,4 @@
-%%--------------------------------------------------------------------
-%% Copyright (c) 2013-2018 EMQ Enterprise, Inc. (http://emqtt.io)
+%% Copyright (c) 2018 EMQ Technologies Co., Ltd. All Rights Reserved.
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -12,20 +11,21 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
-%%--------------------------------------------------------------------
 
--module(emq_web_hook_sup).
+-module(emqx_web_hook_app).
 
--behaviour(supervisor).
+-behaviour(application).
 
--export([start_link/0]).
+-export([start/2, stop/1]).
 
--export([init/1]).
+start(_StartType, _StartArgs) ->
+    {ok, Sup} = emqx_web_hook_sup:start_link(),
+    emqx_web_hook:load(),
+    emqx_web_hook_cfg:register(),
+    {ok, Sup}.
 
--define(SERVER, ?MODULE).
+stop(_State) ->
+    emqx_web_hook:unload(),
+    emqx_web_hook_cfg:unregister(),
+    ok.
 
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
-
-init([]) ->
-    {ok, {{one_for_all, 0, 1}, []}}.

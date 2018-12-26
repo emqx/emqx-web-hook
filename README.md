@@ -1,25 +1,24 @@
 
-emq-web-hook
-============
+emqx-web-hook
+=============
 
-EMQ broker plugin to catch broker hooks through webhook.<br>
-[http://emqtt.io](http://emqtt.io)<br>
-[https://www.sakib.ninja](https://www.sakib.ninja)
+EMQ X Webhook plugin.
 
 Setup
 -----
 
 ##### In Makefile,
 
-DEPS += emq_web_hook
+DEPS += emqx_web_hook
 
-dep_emq_web_hook = git https://github.com/emqtt/emq-web-hook master
+dep_emqx_web_hook = git git@github.com:emqx/emqx-web-hook.git master
 
 ##### In relx.config
 
-{emq_webhook_plugin, load}
+{emqx_webhook_plugin, load}
 
-##### emq_web_hook.conf
+##### emqx_web_hook.conf
+
 ```
 web.hook.api.url = http://127.0.0.1
 
@@ -34,7 +33,6 @@ web.hook.rule.session.terminated.1   = {"action": "on_session_terminated"}
 web.hook.rule.message.publish.1      = {"action": "on_message_publish"}
 web.hook.rule.message.delivered.1    = {"action": "on_message_delivered"}
 web.hook.rule.message.acked.1        = {"action": "on_message_acked"}
-
 ```
 
 API
@@ -181,9 +179,10 @@ Author
 * [Sakib Sami](https://github.com/s4kibs4mi)
 
 Contributors
-------
+------------
 
-* [turtleDeng](https://github.com/turtleDeng)
+* [Deng](https://github.com/turtleDeng)
 * [vishr](https://github.com/vishr)
 * [emqplus](https://github.com/emqplus)
 * [huangdan](https://github.com/huangdan)
+

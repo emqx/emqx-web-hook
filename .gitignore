@@ -22,4 +22,6 @@ ct.coverdata
 deps
 eunit.coverdata
 test/ct.cover.spec
+emqx_web_hook.d
 emq_web_hook.d
+rebar.lock
