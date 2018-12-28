@@ -23,7 +23,7 @@
 -include("emqx_web_hook.hrl").
 
 %% API
--export([start_link/0, insert/1, update/1, delete/1, forward/1,
+-export([start_link/0, insert/1, insert/2, update/1, update/2, delete/1, delete/2, forward/1,
          serialize/1, serialize/2]).
 
 %% gen_server callbacks
@@ -52,13 +52,28 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 insert(Rule) when is_record(Rule, rule) ->
-    gen_server:call(?SERVER, {insert, Rule}).
+    [insert(Node, Rule) || Node <- ekka_mnesia:running_nodes()].
+
+insert(Node, Rule) when Node =:= node() ->
+    gen_server:call(?SERVER, {insert, Rule});
+insert(Node, Rule) ->
+    rpc_call(Node, insert, [Rule]).
 
 update(Rule) when is_record(Rule, rule) ->
-    gen_server:call(?SERVER, {update, Rule}).
+    [update(Node, Rule) || Node <- ekka_mnesia:running_nodes()].
+
+update(Node, Rule) when Node =:= node() ->
+    gen_server:call(?SERVER, {update, Rule});
+update(Node, Rule) ->
+    rpc_call(Node, update, [Rule]).
 
 delete(Id) ->
-    gen_server:call(?SERVER, {delete, Id}).
+    [delete(Node, Id) || Node <- ekka_mnesia:running_nodes()].
+
+delete(Node, Id) when Node =:= node() ->
+    gen_server:call(?SERVER, {delete, Id});
+delete(Node, Id) ->
+    rpc_call(Node, delete, [Id]).
 
 forward(Msg = #mqtt_message{topic=_Topic, headers=Headers}) ->
     lager:debug("emqx_web_hook_rule check forward message ~p", [Msg]),
@@ -246,3 +261,9 @@ send_http_request(Url, Headers, Params) ->
     Params1 = iolist_to_binary(mochijson2:encode(Params)),
     lager:debug("send http request url: ~p, header: ~p, params: ~p", [Url, Headers, Params1]),
     emqx_web_hook:http_request(post, Params1, Url, Headers).
+
+rpc_call(Node, Fun, Args) ->
+    case rpc:call(Node, ?MODULE, Fun, Args) of
+        {badrpc, Reason} -> {error, Reason};
+        Res -> Res
+    end.
