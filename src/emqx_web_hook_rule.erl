@@ -52,7 +52,11 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 insert(Rule) when is_record(Rule, rule) ->
-    [insert(Node, Rule) || Node <- ekka_mnesia:running_nodes()].
+    Results = [insert(Node, Rule) || Node <- ekka_mnesia:running_nodes()],
+    case lists:any(fun(Item) -> Item =:= ok end, Results) of
+        true  -> ok;
+        false -> lists:last(Results)
+    end.
 
 insert(Node, Rule) when Node =:= node() ->
     gen_server:call(?SERVER, {insert, Rule});
@@ -60,7 +64,11 @@ insert(Node, Rule) ->
     rpc_call(Node, insert, [Rule]).
 
 update(Rule) when is_record(Rule, rule) ->
-    [update(Node, Rule) || Node <- ekka_mnesia:running_nodes()].
+    Results = [update(Node, Rule) || Node <- ekka_mnesia:running_nodes()],
+    case lists:any(fun(Item) -> Item =:= ok end, Results) of
+        true  -> ok;
+        false -> lists:last(Results)
+    end.
 
 update(Node, Rule) when Node =:= node() ->
     gen_server:call(?SERVER, {update, Rule});
@@ -68,7 +76,11 @@ update(Node, Rule) ->
     rpc_call(Node, update, [Rule]).
 
 delete(Id) ->
-    [delete(Node, Id) || Node <- ekka_mnesia:running_nodes()].
+    Results = [delete(Node, Id) || Node <- ekka_mnesia:running_nodes()],
+    case lists:any(fun(Item) -> Item =:= ok end, Results) of
+        true  -> ok;
+        false -> lists:last(Results)
+    end.
 
 delete(Node, Id) when Node =:= node() ->
     gen_server:call(?SERVER, {delete, Id});
