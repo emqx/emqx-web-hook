@@ -61,7 +61,7 @@ insert(Rule) when is_record(Rule, rule) ->
 insert(Node, Rule) when Node =:= node() ->
     gen_server:call(?SERVER, {insert, Rule});
 insert(Node, Rule) ->
-    rpc_call(Node, insert, [Rule]).
+    rpc_call(Node, insert, [Node, Rule]).
 
 update(Rule) when is_record(Rule, rule) ->
     Results = [update(Node, Rule) || Node <- ekka_mnesia:running_nodes()],
@@ -73,7 +73,7 @@ update(Rule) when is_record(Rule, rule) ->
 update(Node, Rule) when Node =:= node() ->
     gen_server:call(?SERVER, {update, Rule});
 update(Node, Rule) ->
-    rpc_call(Node, update, [Rule]).
+    rpc_call(Node, update, [Node, Rule]).
 
 delete(Id) ->
     Results = [delete(Node, Id) || Node <- ekka_mnesia:running_nodes()],
@@ -85,7 +85,7 @@ delete(Id) ->
 delete(Node, Id) when Node =:= node() ->
     gen_server:call(?SERVER, {delete, Id});
 delete(Node, Id) ->
-    rpc_call(Node, delete, [Id]).
+    rpc_call(Node, delete, [Node, Id]).
 
 forward(Msg = #mqtt_message{topic=_Topic, headers=Headers}) ->
     lager:debug("emqx_web_hook_rule check forward message ~p", [Msg]),
