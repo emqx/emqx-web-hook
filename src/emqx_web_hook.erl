@@ -278,7 +278,9 @@ with_filter(Fun, Msg, Topic, Filter) ->
 format_from(Message = #message{from = From}) when is_atom(From) ->
     format_from(Message#message{from = a2b(From)});
 format_from(#message{from = ClientId, headers = #{username := Username}}) ->
-    {ClientId, Username}.
+    {ClientId, Username};
+format_from(#message{from = ClientId}) ->
+    {ClientId, <<>>}.
 
 a2b(A) -> erlang:atom_to_binary(A, utf8).
 
