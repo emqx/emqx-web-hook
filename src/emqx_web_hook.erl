@@ -275,12 +275,13 @@ with_filter(Fun, Msg, Topic, Filter) ->
         false -> {ok, Msg}
     end.
 
-format_from(Message = #message{from = From}) when is_atom(From) ->
+format_from(Message = #message{from = From}) ->
     format_from(Message#message{from = a2b(From)});
 format_from(#message{from = ClientId, headers = #{username := Username}}) ->
-    {ClientId, Username}.
+    {a2b(ClientId), a2b(Username)}.
 
-a2b(A) -> erlang:atom_to_binary(A, utf8).
+a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
+a2b(A) -> A.
 
 load_(Hook, Fun, Filter, Params) ->
     case Hook of
