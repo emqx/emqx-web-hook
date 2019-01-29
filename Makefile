@@ -1,6 +1,6 @@
 PROJECT = emqx_web_hook
 PROJECT_DESCRIPTION = EMQ X Webhook Plugin
-PROJECT_VERSION = 3.0
+PROJECT_VERSION = 3.1
 
 DEPS = jsx clique
 dep_jsx    = git-emqx https://github.com/talentdeficit/jsx v2.9.0
