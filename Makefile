@@ -1,13 +1,13 @@
 PROJECT = emqx_web_hook
 PROJECT_DESCRIPTION = EMQ X Webhook Plugin
-PROJECT_VERSION = 3.0
+PROJECT_VERSION = 3.1
 
 DEPS = jsx clique
 dep_jsx    = git-emqx https://github.com/talentdeficit/jsx v2.9.0
 dep_clique = git-emqx https://github.com/emqx/clique v0.3.11
 
 BUILD_DEPS = emqx
-dep_emqx = git-emqx https://github.com/emqx/emqx emqx30
+dep_emqx = git-emqx https://github.com/emqx/emqx testing
 
 ERLC_OPTS += +debug_info
 
