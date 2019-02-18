@@ -25,3 +25,5 @@ test/ct.cover.spec
 emqx_web_hook.d
 emq_web_hook.d
 rebar.lock
+erlang.mk
+rebar3.crashdump
