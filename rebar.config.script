@@ -1,0 +1,43 @@
+CONFIG0 = case os:getenv("REBAR_GIT_CLONE_OPTIONS") of
+              "--depth 1" ->
+                  CONFIG;
+              _ ->
+                  os:putenv("REBAR_GIT_CLONE_OPTIONS", "--depth 1"),
+                  CONFIG
+          end,
+
+CONFIG1 = case os:getenv("TRAVIS") of
+              "true" ->
+                  JobId = os:getenv("TRAVIS_JOB_ID"),
+                  [{coveralls_service_job_id, JobId},
+                   {coveralls_coverdata, "_build/test/cover/*.coverdata"},
+                   {coveralls_service_name , "travis-ci"} | CONFIG];
+              _ ->
+                  CONFIG
+          end,
+
+CUR_BRANCH = os:cmd("git branch | grep -e '^*' | cut -d' ' -f 2") -- "\n",
+
+BRANCH = case lists:member(CUR_BRANCH, ["master", "develop", "testing"]) of
+             true -> CUR_BRANCH;
+             false -> "testing"
+         end,
+
+{_, LibDeps} = lists:keyfind(github_emqx_libs, 1, CONFIG1),
+{_, ProjDeps} = lists:keyfind(github_emqx_projects, 1, CONFIG1),
+UrlPrefix = "https://github.com/emqx/",
+RealName = fun TransName([$_ | Tail], Result) ->
+                       TransName(Tail, [$- | Result]);
+                   TransName([Head | Tail], Result) ->
+                       TransName(Tail, [Head | Result]);
+                   TransName([], Result) ->
+                       lists:reverse(Result)
+           end,
+LibDeps = [{LibName, {git, UrlPrefix ++ RealName(atom_to_list(LibName), []), {branch, Branch}}} || {LibName, Branch} <- LibDeps],
+ProjDeps = Deps ++ [{Name, {git, UrlPrefix ++ RealName(atom_to_list(Name), []), {branch, BRANCH}}}
+                  || Name <- ProjDeps],
+
+NewDeps = Deps ++ LibDeps ++ ProjDeps,
+
+CONFIG2 = lists:keystore(deps, 1, CONFIG1, {deps, NewDeps}),
+CONFIG2.
