@@ -43,11 +43,9 @@ groups() ->
 init_per_suite(Config) ->
     DataDir = proplists:get_value(data_dir, Config),
     [start_apps(App, DataDir) || App <- [emqx, emqx_web_hook]],
-    start_http_(),
     Config.
 
 end_per_suite(_Config) ->
-    http_server:stop_http(),
     [application:stop(App) || App <- [emqx_web_hook, emqx]].
 
 reload(_Config) ->
@@ -80,12 +78,17 @@ change_config(_Config) ->
     emqx_web_hook:load().
 
 case1(_Config) ->
+    Pid = self(),
+    http_server:start_http(Pid),
     {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
     {ok, _} = emqx_client:connect(C),
     emqx_client:subscribe(C, <<"TopicA">>, qos2),
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
     emqx_client:disconnect(C),
+    ValidateData = loop_get_value(),
+    loop_validate(ValidateData, "simpleClient"),
+    http_server:stop_http(),
     ok.
 
 start_apps(App, DataDir) ->
@@ -99,5 +102,24 @@ start_apps(App, DataDir) ->
 hooks_(HookName) ->
     string:join(lists:append(["on"], string:tokens(HookName, ".")), "_").
 
-start_http_() ->
-    http_server:start_http().
+loop_get_value()->
+    loop_get_value([]).
+
+loop_get_value(Acc) ->
+    receive
+        [{Info, _}] ->
+            ct:pal("OK - received msg: ~p~n", [Info]),
+            loop_get_value([Info | Acc])
+    after 0 ->
+        Acc
+    end.
+
+loop_validate([ValidateData | WaitValidataData], ValidateValue) ->
+    {IsMatch, _} = re:run(binary_to_list(ValidateData), ValidateValue),
+    case IsMatch of
+        match -> loop_validate(WaitValidataData, ValidateValue);
+        nomatch -> ct:fail("no match")
+    end;
+
+loop_validate([], _) ->
+    ok.
