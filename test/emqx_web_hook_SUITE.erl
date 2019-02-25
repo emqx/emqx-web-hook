@@ -37,7 +37,7 @@ all() ->
 
 groups() ->
     [{emqx_web_hook, [sequence], [reload, change_config]},
-     {emqx_web_hook_actions, [sequence], [case1]}
+     {emqx_web_hook_actions, [sequence], [validate_web_hook]}
     ].
 
 init_per_suite(Config) ->
@@ -77,9 +77,8 @@ change_config(_Config) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-case1(_Config) ->
-    Pid = self(),
-    http_server:start_http(Pid),
+validate_web_hook(_Config) ->
+    http_server:start_http(),
     {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
     {ok, _} = emqx_client:connect(C),
     emqx_client:subscribe(C, <<"TopicA">>, qos2),
