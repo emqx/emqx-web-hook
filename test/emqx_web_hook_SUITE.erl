@@ -85,7 +85,7 @@ validate_web_hook(_Config) ->
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
     emqx_client:disconnect(C),
-    ValidateData = loop_get_value(),
+    ValidateData = get_mailbox_message(self()),
     loop_validate(ValidateData, "simpleClient"),
     http_server:stop_http(),
     ok.
@@ -101,17 +101,9 @@ start_apps(App, DataDir) ->
 hooks_(HookName) ->
     string:join(lists:append(["on"], string:tokens(HookName, ".")), "_").
 
-loop_get_value()->
-    loop_get_value([]).
-
-loop_get_value(Acc) ->
-    receive
-        [{Info, _}] ->
-            ct:pal("OK - received msg: ~p~n", [Info]),
-            loop_get_value([Info | Acc])
-    after 0 ->
-        Acc
-    end.
+get_mailbox_message(Pid) ->
+    {messages, MailboxMessage} = erlang:process_info(Pid, messages),
+    [  Info || [{Info, _}] <- MailboxMessage].
 
 loop_validate([ValidateData | WaitValidataData], ValidateValue) ->
     {IsMatch, _} = re:run(binary_to_list(ValidateData), ValidateValue),
@@ -119,6 +111,5 @@ loop_validate([ValidateData | WaitValidataData], ValidateValue) ->
         match -> loop_validate(WaitValidataData, ValidateValue);
         nomatch -> ct:fail("no match")
     end;
-
 loop_validate([], _) ->
     ok.
