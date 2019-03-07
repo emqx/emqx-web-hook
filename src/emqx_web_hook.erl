@@ -275,10 +275,10 @@ with_filter(Fun, Msg, Topic, Filter) ->
         false -> {ok, Msg}
     end.
 
-format_from(Message = #message{from = From}) ->
-    format_from(Message#message{from = a2b(From)});
 format_from(#message{from = ClientId, headers = #{username := Username}}) ->
-    {a2b(ClientId), a2b(Username)}.
+    {a2b(ClientId), a2b(Username)};
+format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
+    {a2b(ClientId), <<"undefined">>}.
 
 a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
 a2b(A) -> A.
