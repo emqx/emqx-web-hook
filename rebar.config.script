@@ -23,6 +23,11 @@ BRANCH = case lists:member(CUR_BRANCH, ["master", "develop", "testing"]) of
              false -> "testing"
          end,
 
+Deps = case lists:keyfind(deps, 1, CONFIG1) of
+           {_, RawDeps} -> RawDeps;
+           _ -> []
+       end,
+
 {_, LibDeps} = lists:keyfind(github_emqx_libs, 1, CONFIG1),
 {_, ProjDeps} = lists:keyfind(github_emqx_projects, 1, CONFIG1),
 UrlPrefix = "https://github.com/emqx/",
@@ -33,11 +38,12 @@ RealName = fun TransName([$_ | Tail], Result) ->
                    TransName([], Result) ->
                        lists:reverse(Result)
            end,
-LibDeps = [{LibName, {git, UrlPrefix ++ RealName(atom_to_list(LibName), []), {branch, Branch}}} || {LibName, Branch} <- LibDeps],
-ProjDeps = Deps ++ [{Name, {git, UrlPrefix ++ RealName(atom_to_list(Name), []), {branch, BRANCH}}}
+
+NewLibDeps = [{LibName, {git, UrlPrefix ++ RealName(atom_to_list(LibName), []), {branch, Branch}}} || {LibName, Branch} <- LibDeps],
+NewProjDeps = Deps ++ [{Name, {git, UrlPrefix ++ RealName(atom_to_list(Name), []), {branch, BRANCH}}}
                   || Name <- ProjDeps],
 
-NewDeps = Deps ++ LibDeps ++ ProjDeps,
+NewDeps = Deps ++ NewLibDeps ++ NewProjDeps,
 
 CONFIG2 = lists:keystore(deps, 1, CONFIG1, {deps, NewDeps}),
 CONFIG2.
