@@ -41,8 +41,12 @@ groups() ->
     ].
 
 init_per_suite(Config) ->
-    DataDir = proplists:get_value(data_dir, Config),
-    [start_apps(App, DataDir) || App <- [emqx, emqx_web_hook]],
+    [start_apps(App, SchemaFile, ConfigFile) ||
+        {App, SchemaFile, ConfigFile}
+            <- [{emqx, deps_path(emqx, "priv/emqx.schema"),
+                 deps_path(emqx, "etc/emqx.conf")},
+                {emqx_web_hook, local_path("priv/emqx_web_hook.schema"),
+                 local_path("etc/emqx_web_hook.conf")}]],
     start_http_(),
     Config.
 
@@ -52,12 +56,6 @@ end_per_suite(_Config) ->
 
 reload(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
-    emqx_web_hook:unload(),
-    timer:sleep(10),
-    lists:foreach(fun({HookName, _Action}) ->
-                          ?assertEqual([], ?HOOK_LOOKUP(HookName))
-                  end, Rules),
-    emqx_web_hook:load(),
     lists:foreach(fun({HookName, _Action}) ->
                           Hooks  = ?HOOK_LOOKUP(HookName),
                           ?assertEqual(true, length(Hooks) > 0)
@@ -101,3 +99,36 @@ hooks_(HookName) ->
 
 start_http_() ->
     http_server:start_http().
+
+deps_path(App, RelativePath) ->
+    %% Note: not lib_dir because etc dir is not sym-link-ed to _build dir
+    %% but priv dir is
+    Path0 = code:priv_dir(App),
+    Path = case file:read_link(Path0) of
+               {ok, Resolved} -> Resolved;
+               {error, _} -> Path0
+           end,
+    filename:join([Path, "..", RelativePath]).
+
+local_path(RelativePath) ->
+    deps_path(emqx_web_hook, RelativePath).
+
+start_apps(App, SchemaFile, ConfigFile) ->
+    read_schema_configs(App, SchemaFile, ConfigFile),
+    set_special_configs(App),
+    application:ensure_all_started(App).
+
+read_schema_configs(App, SchemaFile, ConfigFile) ->
+    ct:pal("Read configs - SchemaFile: ~p, ConfigFile: ~p", [SchemaFile, ConfigFile]),
+    Schema = cuttlefish_schema:files([SchemaFile]),
+    Conf = conf_parse:file(ConfigFile),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    Vals = proplists:get_value(App, NewConfig, []),
+    [application:set_env(App, Par, Value) || {Par, Value} <- Vals].
+
+set_special_configs(emqx) ->
+    application:set_env(emqx, allow_anonymous, true),
+    application:set_env(emqx, plugins_loaded_file,
+                        deps_path(emqx, "test/emqx_SUITE_data/loaded_plugins"));
+set_special_configs(_App) ->
+    ok.
