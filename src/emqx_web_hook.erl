@@ -24,7 +24,7 @@
 -export([on_client_subscribe/3, on_client_unsubscribe/3]).
 -export([on_session_created/3, on_session_subscribed/4, on_session_unsubscribed/4,
          on_session_terminated/3]).
--export([on_message_publish/2, on_message_delivered/3, on_message_acked/3]).
+-export([on_message_publish/2, on_message_deliver/3, on_message_acked/3]).
 
 -define(LOG(Level, Format, Args), emqx_logger:Level("WebHook: " ++ Format, Args)).
 
@@ -186,14 +186,14 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
       end, Message, Topic, Filter).
 
 %%--------------------------------------------------------------------
-%% Message delivered
+%% Message deliver
 %%--------------------------------------------------------------------
 
-on_message_delivered(#{client_id := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_deliver(#{client_id := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
   with_filter(
     fun() ->
       {FromClientId, FromUsername} = format_from(Message),
-      Params = [{action, message_delivered},
+      Params = [{action, message_deliver},
                 {client_id, ClientId},
                 {username, Username},
                 {from_client_id, FromClientId},
@@ -275,10 +275,10 @@ with_filter(Fun, Msg, Topic, Filter) ->
         false -> {ok, Msg}
     end.
 
-format_from(Message = #message{from = From}) ->
-    format_from(Message#message{from = a2b(From)});
 format_from(#message{from = ClientId, headers = #{username := Username}}) ->
-    {a2b(ClientId), a2b(Username)}.
+    {a2b(ClientId), a2b(Username)};
+format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
+    {a2b(ClientId), <<"undefined">>}.
 
 a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
 a2b(A) -> A.
@@ -295,7 +295,7 @@ load_(Hook, Fun, Filter, Params) ->
         'session.terminated'  -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
         'message.publish'     -> emqx:hook(Hook, fun ?MODULE:Fun/2, [Params]);
         'message.acked'       -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'message.delivered'   -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
+        'message.deliver'     -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
     end.
 
 unload_(Hook, Fun, Filter) ->
@@ -310,6 +310,6 @@ unload_(Hook, Fun, Filter) ->
         'session.terminated'  -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
         'message.publish'     -> emqx:unhook(Hook, fun ?MODULE:Fun/2);
         'message.acked'       -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'message.delivered'   -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
+        'message.deliver'     -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
     end.
 
