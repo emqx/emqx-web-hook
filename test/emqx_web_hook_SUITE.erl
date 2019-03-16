@@ -71,10 +71,10 @@ server_config(_) ->
 change_config(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     emqx_web_hook:unload(),
-    HookRules = lists:keydelete("message.delivered", 1, Rules),
+    HookRules = lists:keydelete("message.deliver", 1, Rules),
     application:set_env(emqx_web_hook, rules, HookRules),
     emqx_web_hook:load(),
-    ?assertEqual([], ?HOOK_LOOKUP("message.delivered")),
+    ?assertEqual([], ?HOOK_LOOKUP("message.deliver")),
     emqx_web_hook:unload(),
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().

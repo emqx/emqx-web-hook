@@ -42,7 +42,7 @@
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.rule.message.delivered.$name", "emqx_web_hook.rules", [
+{mapping, "web.hook.rule.message.deliver.$name", "emqx_web_hook.rules", [
   {datatype, string}
 ]}.
 
