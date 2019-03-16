@@ -295,7 +295,7 @@ load_(Hook, Fun, Filter, Params) ->
         'session.terminated'  -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
         'message.publish'     -> emqx:hook(Hook, fun ?MODULE:Fun/2, [Params]);
         'message.acked'       -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'message.deliver'   -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
+        'message.deliver'     -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
     end.
 
 unload_(Hook, Fun, Filter) ->
@@ -310,6 +310,6 @@ unload_(Hook, Fun, Filter) ->
         'session.terminated'  -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
         'message.publish'     -> emqx:unhook(Hook, fun ?MODULE:Fun/2);
         'message.acked'       -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'message.deliver'   -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
+        'message.deliver'     -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
     end.
 
