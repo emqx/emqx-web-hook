@@ -9,22 +9,22 @@ start_http() ->
     {ok, _} = application:ensure_all_started(cowboy),
     Dispatch = cowboy_router:compile([
         {'_', [
-              {"/", ?MODULE, []}
+              {"/", ?MODULE, self()}
         ]}
     ]),
-    {ok, _Pid} = cowboy:start_clear(http, [{port, 8991}], #{
+    {ok, _Pid} = cowboy:start_clear(http, [{port, 8080}], #{
         env => #{dispatch => Dispatch}
     }).
 
 stop_http() ->
     cowboy:stop_listener(http).
 
-init(Req, Opts) ->
+init(Req, ReceiverPid) ->
     io:format("init Req: ~p~n", [Req]),
-    Req1 = handle_request(Req),
-    {ok, Req1, Opts}.
+    Req1 = handle_request(Req, ReceiverPid),
+    {ok, Req1, ReceiverPid}.
 
-handle_request(Req) ->
+handle_request(Req, ReceiverPid) ->
     Method =cowboy_req:method(Req),
     Params =
         case Method of
@@ -33,8 +33,8 @@ handle_request(Req) ->
                 {ok, PostVals, _Req2} = cowboy_req:read_urlencoded_body(Req),
                 PostVals
         end,
-
     io:format("Method: ~p, Param: ~p", [Method, Params]),
+    erlang:send(ReceiverPid, Params),
     reply(Req, ok).
 
 reply(Req, ok) ->
