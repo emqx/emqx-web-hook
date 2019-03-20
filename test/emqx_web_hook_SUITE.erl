@@ -73,8 +73,10 @@ validate_web_hook(_Config) ->
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
     emqx_client:disconnect(C),
+    ct:sleep(3000),
     ValidateData = get_http_message(self()),
     [validate_http_data(A) || A <- ValidateData],
+    ct:sleep(3000),
     http_server:stop_http(),
     ok.
 
@@ -139,5 +141,11 @@ validate_http_data(#{<<"action">> := <<"message_acked">>, <<"client_id">> := Cli
     ?assertEqual(<<"Payload...">>, Payload),
     ?assertEqual(2, Qos),
     ?assertEqual(<<"TopicA">>, TopicA);
+validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"client_id">> := ClientId,
+                    <<"username">> := Username}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username);
+validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"client_id">> := ClientId}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId);
 validate_http_data(_ValidateData) ->
     ct:fail("fail").
