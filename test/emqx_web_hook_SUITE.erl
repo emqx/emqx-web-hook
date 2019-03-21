@@ -88,7 +88,7 @@ get_http_message(Acc) ->
     receive
         Info -> get_http_message([Info | Acc])
     after 
-        30 ->
+        300 ->
             [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
     end.
 
