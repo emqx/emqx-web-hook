@@ -37,22 +37,15 @@ all() ->
 
 groups() ->
     [{emqx_web_hook, [sequence], [reload, change_config]},
-     {emqx_web_hook_actions, [sequence], [case1]}
+     {emqx_web_hook_actions, [sequence], [validate_web_hook]}
     ].
 
 init_per_suite(Config) ->
-    [start_apps(App, SchemaFile, ConfigFile) ||
-        {App, SchemaFile, ConfigFile}
-            <- [{emqx, deps_path(emqx, "priv/emqx.schema"),
-                 deps_path(emqx, "etc/emqx.conf")},
-                {emqx_web_hook, local_path("priv/emqx_web_hook.schema"),
-                 local_path("etc/emqx_web_hook.conf")}]],
-    start_http_(),
+    emqx_ct_helpers:start_apps([emqx, emqx_web_hook]),
     Config.
 
 end_per_suite(_Config) ->
-    http_server:stop_http(),
-    [application:stop(App) || App <- [emqx_web_hook, emqx]].
+    emqx_ct_helpers:stop_apps([emqx, emqx_web_hook]).
 
 reload(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
@@ -60,11 +53,6 @@ reload(_Config) ->
                           Hooks  = ?HOOK_LOOKUP(HookName),
                           ?assertEqual(true, length(Hooks) > 0)
                   end, Rules).
-
-server_config(_) ->
-    emqx_cli_config:run(["config", "set", "web.hook.api.url=https://example.com", "--app=emqx_web_hook"]),
-    {ok, Url} =  application:get_env(emqx_web_hook, url),
-    ?assertEqual("https://example.com", Url).
 
 change_config(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
@@ -77,58 +65,92 @@ change_config(_Config) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-case1(_Config) ->
+validate_web_hook(_Config) ->
+    http_server:start_http(),
     {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
     {ok, _} = emqx_client:connect(C),
     emqx_client:subscribe(C, <<"TopicA">>, qos2),
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
     emqx_client:disconnect(C),
+    ValidateData = get_http_message(),
+    [validate_http_data(A) || A <- ValidateData],
+    http_server:stop_http(),
     ok.
-
-start_apps(App, DataDir) ->
-    Schema = cuttlefish_schema:files([filename:join([DataDir, atom_to_list(App) ++ ".schema"])]),
-    Conf = conf_parse:file(filename:join([DataDir, atom_to_list(App) ++ ".conf"])),
-    NewConfig = cuttlefish_generator:map(Schema, Conf),
-    Vals = proplists:get_value(App, NewConfig),
-    [application:set_env(App, Par, Value) || {Par, Value} <- Vals],
-    application:ensure_all_started(App).
 
 hooks_(HookName) ->
     string:join(lists:append(["on"], string:tokens(HookName, ".")), "_").
 
-start_http_() ->
-    http_server:start_http().
+get_http_message() ->
+    get_http_message([]).
 
-deps_path(App, RelativePath) ->
-    %% Note: not lib_dir because etc dir is not sym-link-ed to _build dir
-    %% but priv dir is
-    Path0 = code:priv_dir(App),
-    Path = case file:read_link(Path0) of
-               {ok, Resolved} -> Resolved;
-               {error, _} -> Path0
-           end,
-    filename:join([Path, "..", RelativePath]).
+get_http_message(Acc) ->
+    receive
+        Info -> get_http_message([Info | Acc])
+    after 
+        0 ->
+            [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
+    end.
 
-local_path(RelativePath) ->
-    deps_path(emqx_web_hook, RelativePath).
+validate_http_data(#{<<"action">> := <<"session_created">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username);
+validate_http_data(#{<<"action">> := <<"client_connected">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username);
+validate_http_data(#{<<"action">> := <<"client_subscribe">>,<<"client_id">> := ClientId, <<"topic">> := Topic,
+                     <<"username">> := Username}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username),
+    ?assertEqual(<<"TopicA">>, Topic);
+validate_http_data(#{<<"action">> := <<"session_subscribed">>, <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"TopicA">>, Topic);
+validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">> := ClientId,
+                     <<"from_username">> := Username, <<"payload">> := Payload,<<"qos">> := Qos,
+                     <<"retain">> := Retain, <<"topic">> := Topic}) ->
+    ?assertEqual(<<"Payload...">>, Payload),
+    ?assertEqual(2, Qos),
+    ?assertEqual(false, Retain),
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username),
+    ?assertEqual(<<"TopicA">>, Topic); 
+validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"client_id">> := ClientId,
+                     <<"from_client_id">> := FromClientId,<<"from_username">> := FromUsername,
+                     <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := Retain,<<"topic">> := Topic,
+                     <<"username">> := Username})->
+    ?assertEqual(<<"Payload...">>, Payload),
+    ?assertEqual(2, Qos),
+    ?assertEqual(false, Retain),
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username),
+    ?assertEqual(<<"TopicA">>, Topic),
+    ?assertEqual(<<"simpleClient">>, FromClientId),
+    ?assertEqual(<<"username">>, FromUsername);
+validate_http_data(#{<<"action">> := <<"client_unsubscribe">>, <<"client_id">> := ClientId,
+                     <<"topic">> := Topic,<<"username">> := Username}) ->
+    ?assertEqual(<<"TopicA">>, Topic),
+    ?assertEqual(<<"username">>, Username),
+    ?assertEqual(<<"simpleClient">>, ClientId);
 
-start_apps(App, SchemaFile, ConfigFile) ->
-    read_schema_configs(App, SchemaFile, ConfigFile),
-    set_special_configs(App),
-    application:ensure_all_started(App).
-
-read_schema_configs(App, SchemaFile, ConfigFile) ->
-    ct:pal("Read configs - SchemaFile: ~p, ConfigFile: ~p", [SchemaFile, ConfigFile]),
-    Schema = cuttlefish_schema:files([SchemaFile]),
-    Conf = conf_parse:file(ConfigFile),
-    NewConfig = cuttlefish_generator:map(Schema, Conf),
-    Vals = proplists:get_value(App, NewConfig, []),
-    [application:set_env(App, Par, Value) || {Par, Value} <- Vals].
-
-set_special_configs(emqx) ->
-    application:set_env(emqx, allow_anonymous, true),
-    application:set_env(emqx, plugins_loaded_file,
-                        deps_path(emqx, "test/emqx_SUITE_data/loaded_plugins"));
-set_special_configs(_App) ->
-    ok.
+validate_http_data(#{<<"action">> := <<"session_unsubscribed">>,
+                     <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
+    ?assertEqual(<<"TopicA">>, Topic),
+    ?assertEqual(<<"simpleClient">>, ClientId);
+validate_http_data(#{<<"action">> := <<"message_acked">>, <<"client_id">> := ClientId,
+                    <<"from_client_id">> := FromClietId, <<"from_username">> := FromUsername,
+                    <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := false,<<"topic">> := TopicA}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"simpleClient">>, FromClietId),
+    ?assertEqual(<<"username">>, FromUsername),
+    ?assertEqual(<<"Payload...">>, Payload),
+    ?assertEqual(2, Qos),
+    ?assertEqual(<<"TopicA">>, TopicA);
+validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"client_id">> := ClientId,
+                    <<"username">> := Username}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username);
+validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"client_id">> := ClientId}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId);
+validate_http_data(_ValidateData) ->
+    ct:fail("fail").
