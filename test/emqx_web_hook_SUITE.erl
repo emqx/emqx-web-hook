@@ -73,19 +73,24 @@ validate_web_hook(_Config) ->
     emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqx_client:unsubscribe(C, <<"TopicA">>),
     emqx_client:disconnect(C),
-    ct:sleep(3000),
-    ValidateData = get_http_message(self()),
+    ValidateData = get_http_message(),
     [validate_http_data(A) || A <- ValidateData],
-    ct:sleep(3000),
     http_server:stop_http(),
     ok.
 
 hooks_(HookName) ->
     string:join(lists:append(["on"], string:tokens(HookName, ".")), "_").
 
-get_http_message(Pid) ->
-    {messages, MailboxMessage} = erlang:process_info(Pid, messages),
-    [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- MailboxMessage].
+get_http_message() ->
+    get_http_message([]).
+
+get_http_message(Acc) ->
+    receive
+        Info -> get_http_message([Info | Acc])
+    after 
+        0 ->
+            [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
+    end.
 
 validate_http_data(#{<<"action">> := <<"session_created">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
