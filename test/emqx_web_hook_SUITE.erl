@@ -92,10 +92,11 @@ get_http_message(Acc) ->
             [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
     end.
 
-validate_http_data(#{<<"action">> := <<"session_created">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+validate_http_data(#{<<"action">> := <<"client_connected">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"client_connected">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"client_id">> := ClientId,
+                <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username);
 validate_http_data(#{<<"action">> := <<"client_subscribe">>,<<"client_id">> := ClientId, <<"topic">> := Topic,
@@ -103,9 +104,23 @@ validate_http_data(#{<<"action">> := <<"client_subscribe">>,<<"client_id">> := C
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username),
     ?assertEqual(<<"TopicA">>, Topic);
+validate_http_data(#{<<"action">> := <<"client_unsubscribe">>, <<"client_id">> := ClientId,
+                     <<"topic">> := Topic,<<"username">> := Username}) ->
+    ?assertEqual(<<"TopicA">>, Topic),
+    ?assertEqual(<<"username">>, Username),
+    ?assertEqual(<<"simpleClient">>, ClientId);
+validate_http_data(#{<<"action">> := <<"session_created">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId),
+    ?assertEqual(<<"username">>, Username);
 validate_http_data(#{<<"action">> := <<"session_subscribed">>, <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"TopicA">>, Topic);
+validate_http_data(#{<<"action">> := <<"session_unsubscribed">>,
+                    <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
+    ?assertEqual(<<"TopicA">>, Topic),
+    ?assertEqual(<<"simpleClient">>, ClientId);
+validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"client_id">> := ClientId}) ->
+    ?assertEqual(<<"simpleClient">>, ClientId);
 validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">> := ClientId,
                      <<"from_username">> := Username, <<"payload">> := Payload,<<"qos">> := Qos,
                      <<"retain">> := Retain, <<"topic">> := Topic}) ->
@@ -127,16 +142,6 @@ validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"client_id">> := C
     ?assertEqual(<<"TopicA">>, Topic),
     ?assertEqual(<<"simpleClient">>, FromClientId),
     ?assertEqual(<<"username">>, FromUsername);
-validate_http_data(#{<<"action">> := <<"client_unsubscribe">>, <<"client_id">> := ClientId,
-                     <<"topic">> := Topic,<<"username">> := Username}) ->
-    ?assertEqual(<<"TopicA">>, Topic),
-    ?assertEqual(<<"username">>, Username),
-    ?assertEqual(<<"simpleClient">>, ClientId);
-
-validate_http_data(#{<<"action">> := <<"session_unsubscribed">>,
-                     <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
-    ?assertEqual(<<"TopicA">>, Topic),
-    ?assertEqual(<<"simpleClient">>, ClientId);
 validate_http_data(#{<<"action">> := <<"message_acked">>, <<"client_id">> := ClientId,
                     <<"from_client_id">> := FromClietId, <<"from_username">> := FromUsername,
                     <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := false,<<"topic">> := TopicA}) ->
@@ -146,11 +151,5 @@ validate_http_data(#{<<"action">> := <<"message_acked">>, <<"client_id">> := Cli
     ?assertEqual(<<"Payload...">>, Payload),
     ?assertEqual(2, Qos),
     ?assertEqual(<<"TopicA">>, TopicA);
-validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"client_id">> := ClientId,
-                    <<"username">> := Username}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"client_id">> := ClientId}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId);
 validate_http_data(_ValidateData) ->
     ct:fail("fail").
