@@ -14,7 +14,9 @@
 
 -module(emqx_web_hook_cfg).
 
--export([register/0, unregister/0]).
+-export([ register/0
+        , unregister/0
+        ]).
 
 -define(APP, emqx_web_hook).
 
