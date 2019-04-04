@@ -43,13 +43,13 @@
 load() ->
     lists:foreach(
       fun({Hook, Fun, Filter}) ->
-        load_(Hook, binary_to_atom(Fun, utf8), Filter, {Filter})
+        load_(Hook, binary_to_atom(Fun, utf8), {Filter})
       end, parse_rule(application:get_env(?APP, rules, []))).
 
 unload() ->
     lists:foreach(
-      fun({Hook, Fun, Filter}) ->
-          unload_(Hook, binary_to_atom(Fun, utf8), Filter)
+      fun({Hook, Fun, _Filter}) ->
+          unload_(Hook, binary_to_atom(Fun, utf8))
       end, parse_rule(application:get_env(?APP, rules, []))).
 
 %%--------------------------------------------------------------------
@@ -295,7 +295,7 @@ format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
 a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
 a2b(A) -> A.
 
-load_(Hook, Fun, Filter, Params) ->
+load_(Hook, Fun, Params) ->
     case Hook of
         'client.connected'    -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'client.disconnected' -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
@@ -310,7 +310,7 @@ load_(Hook, Fun, Filter, Params) ->
         'message.deliver'     -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
     end.
 
-unload_(Hook, Fun, Filter) ->
+unload_(Hook, Fun) ->
     case Hook of
         'client.connected'    -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'client.disconnected' -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
