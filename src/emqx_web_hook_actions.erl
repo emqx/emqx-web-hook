@@ -47,9 +47,9 @@ on_resource_create(_Name, Conf) ->
 
 %% An action that forwards messages to a remote web server.
 -spec(forward_action(#{url := string()}) -> action_fun()).
-forward_action(#{url := Url}) ->
-    fun(Msg = #{}) ->
-        http_request(Url, Msg)
+forward_action(_Args = #{url := Url}) ->
+    fun(Data = #{}) ->
+        http_request(Url, Data)
     end.
 
 %%------------------------------------------------------------------------------
