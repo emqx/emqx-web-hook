@@ -27,7 +27,7 @@
                for => 'message.publish',
                func => forward_action,
                params => #{url => string},
-               description => "Republish a MQTT message"
+               description => "Forward a MQTT message"
               }).
 
 -type(action_fun() :: fun((Data :: map()) -> Result :: any())).
