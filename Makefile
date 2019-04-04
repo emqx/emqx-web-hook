@@ -1,12 +1,13 @@
 PROJECT = emqx_web_hook
 PROJECT_DESCRIPTION = EMQ X Webhook Plugin
 
-DEPS = jsx clique
-dep_jsx    = git-emqx https://github.com/talentdeficit/jsx v2.9.0
-dep_clique = git-emqx https://github.com/emqx/clique v0.3.11
-
 CUR_BRANCH := $(shell git branch | grep -e "^*" | cut -d' ' -f 2)
 BRANCH := $(if $(filter $(CUR_BRANCH), master develop), $(CUR_BRANCH), develop)
+
+DEPS = jsx clique emqx_rule_engine
+dep_jsx    = git-emqx https://github.com/talentdeficit/jsx v2.9.0
+dep_clique = git-emqx https://github.com/emqx/clique v0.3.11
+dep_emqx_rule_engine = git-emqx https://github.com/emqx/emqx-rule-engine $(BRANCH)
 
 BUILD_DEPS = emqx
 dep_emqx = git-emqx https://github.com/emqx/emqx $(BRANCH)
