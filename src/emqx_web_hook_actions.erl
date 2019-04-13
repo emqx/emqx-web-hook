@@ -26,7 +26,7 @@
 -rule_action(#{name => forward_action,
                for => 'message.publish',
                func => forward_action,
-               params => #{url => string},
+               params => #{url => string, '$resource' => web_hook},
                description => "Forward a MQTT message"
               }).
 
