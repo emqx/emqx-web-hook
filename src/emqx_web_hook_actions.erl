@@ -19,18 +19,22 @@
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC,
-        #{url => #{type => url, required => true,
+        #{url => #{type => url,
+                   required => true,
                    description => <<"Request URL">>},
-          headers => #{type => object, required => false,
+          headers => #{type => object,
+                       required => false,
+                       default => #{},
                        description => <<"Request Header">>},
-          method => #{type => enum, enum => ['GET','PUT','POST','DELETE'],
+          method => #{type => enum,
+                      enum => ['GET','PUT','POST','DELETE'],
                       required => false,
+                      default => 'POST',
                       description => <<"Request Method">>}}).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
-                 schema => "emqx_web_hook.url",
                  create => on_resource_create,
                  params => ?RESOURCE_CONFIG_SPEC,
                  description => "WebHook Resource"
@@ -45,10 +49,10 @@
               }).
 
 -rule_action(#{name => event_action,
-               for => any,
+               for => '$events',
                func => forward_event_action,
-               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK,
-                           template => json},
+               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
+                           %template => json},
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Events to Web Server"
               }).
