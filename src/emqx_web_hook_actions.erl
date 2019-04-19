@@ -19,12 +19,17 @@
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC,
-        #{url => #{type => url, required => true,
+        #{url => #{type => url,
+                   required => true,
                    description => <<"Request URL">>},
-          headers => #{type => object, required => false,
+          headers => #{type => object,
+                       required => false,
+                       default => #{},
                        description => <<"Request Header">>},
-          method => #{type => enum, enum => ['GET','PUT','POST','DELETE'],
+          method => #{type => enum,
+                      enum => ['GET','PUT','POST','DELETE'],
                       required => false,
+                      default => 'POST',
                       description => <<"Request Method">>}}).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
