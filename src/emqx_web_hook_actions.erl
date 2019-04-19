@@ -51,8 +51,8 @@
 -rule_action(#{name => event_action,
                for => '$events',
                func => forward_event_action,
-               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK,
-                           template => json},
+               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
+                           %template => json},
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Events to Web Server"
               }).
