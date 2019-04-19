@@ -49,7 +49,7 @@
               }).
 
 -rule_action(#{name => event_action,
-               for => any,
+               for => '$events',
                func => forward_event_action,
                params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK,
                            template => json},
