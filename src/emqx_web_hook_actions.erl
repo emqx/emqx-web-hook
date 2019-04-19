@@ -30,7 +30,6 @@
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
-                 schema => "emqx_web_hook.url",
                  create => on_resource_create,
                  params => ?RESOURCE_CONFIG_SPEC,
                  description => "WebHook Resource"
