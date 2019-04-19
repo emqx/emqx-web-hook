@@ -18,8 +18,14 @@
 -include_lib("emqx/include/emqx.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
--define(RESOURCE_CONFIG_SPEC, #{url => string, headers => json,
-                                method => ['GET','PUT','POST','DELETE']}).
+-define(RESOURCE_CONFIG_SPEC,
+        #{url => #{type => url, required => true,
+                   description => <<"Request URL">>},
+          headers => #{type => object, required => false,
+                       description => <<"Request Header">>},
+          method => #{type => enum, enum => ['GET','PUT','POST','DELETE'],
+                      required => false,
+                      description => <<"Request Method">>}}).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
 
@@ -35,7 +41,7 @@
                func => forward_publish_action,
                params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
                type => ?RESOURCE_TYPE_WEBHOOK,
-               description => "Forward MQTT messages to Web Server"
+               description => "Forward Messages to Web Server"
               }).
 
 -rule_action(#{name => event_action,
