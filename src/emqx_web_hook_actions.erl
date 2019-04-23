@@ -22,26 +22,30 @@
             url => #{type => string,
                      format => url,
                      required => true,
+                     title => <<"Request URL">>,
                      description => <<"Request URL">>},
             headers => #{type => object,
                          schema => #{},
-                         default => [],
+                         default => #{},
+                         title => <<"Request Header">>,
                          description => <<"Request Header">>},
             method => #{type => string,
-                        enum => [<<"GET">>,<<"PUT">>,<<"POST">>,<<"DELETE">>,
-                                 <<"get">>,<<"put">>,<<"post">>,<<"delete">>],
+                        enum => [<<"GET">>,<<"PUT">>,<<"POST">>,<<"DELETE">>],
                         default => <<"POST">>,
+                        title => <<"Request Method">>,
                         description => <<"Request Method">>}
         }).
 
 -define(ACTION_PARAMS_SPEC, #{
             '$resource' => #{type => string,
                              required => true,
+                             title => <<"Resource ID">>,
                              description => <<"Bind a resource to this action">>},
             template => #{type => object,
                           schema => #{},
                           required => false,
-                          description => <<"Repubilsh To which topic">>}
+                          title => <<"Payload Template">>,
+                          description => <<"The payload template to be filled with variables before sending messages">>}
         }).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
@@ -70,6 +74,8 @@
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
 
+-type(url() :: binary()).
+
 -export_type([action_fun/0]).
 
 -export([on_resource_create/2]).
@@ -77,9 +83,6 @@
 -export([ forward_publish_action/1
         , forward_event_action/1
         ]).
-
-%% debug
--export([feed_template/2, parse_action_params/1]).
 
 %%------------------------------------------------------------------------------
 %% Actions for web hook
@@ -90,7 +93,7 @@ on_resource_create(_Name, Conf) ->
     Conf.
 
 %% An action that forwards publish messages to a remote web server.
--spec(forward_publish_action(#{url := string()}) -> action_fun()).
+-spec(forward_publish_action(#{url() := string()}) -> action_fun()).
 forward_publish_action(Params) ->
     #{url := Url, headers := Headers, method := Method}
         = parse_action_params(Params),
@@ -99,7 +102,7 @@ forward_publish_action(Params) ->
     end.
 
 %% An action that forwards events to a remote web server.
--spec(forward_event_action(#{url := string()}) -> action_fun()).
+-spec(forward_event_action(#{url() := string()}) -> action_fun()).
 forward_event_action(Params) ->
     #{url := Url, headers := Headers, method := Method, template := Template}
         = parse_action_params(Params),
@@ -129,12 +132,12 @@ http_request(Method, Req, HTTPOpts, Opts, Times) ->
         Other -> Other
     end.
 
-parse_action_params(Params = #{url := Url}) ->
+parse_action_params(Params = #{<<"url">> := Url}) ->
     try
         #{url => str(Url),
-          headers => headers(maps:get(headers, Params, undefined)),
-          method => method(maps:get(method, Params, <<"POST">>)),
-          template => maps:get(template, Params, undefined)}
+          headers => headers(maps:get(<<"headers">>, Params, undefined)),
+          method => method(maps:get(<<"method">>, Params, <<"POST">>)),
+          template => maps:get(<<"template">>, Params, undefined)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
