@@ -18,19 +18,31 @@
 -include_lib("emqx/include/emqx.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
--define(RESOURCE_CONFIG_SPEC,
-        #{url => #{type => url,
-                   required => true,
-                   description => <<"Request URL">>},
-          headers => #{type => object,
-                       required => false,
-                       default => #{},
-                       description => <<"Request Header">>},
-          method => #{type => enum,
-                      enum => ['GET','PUT','POST','DELETE'],
-                      required => false,
-                      default => 'POST',
-                      description => <<"Request Method">>}}).
+-define(RESOURCE_CONFIG_SPEC, #{
+            url => #{type => string,
+                     format => url,
+                     required => true,
+                     description => <<"Request URL">>},
+            headers => #{type => object,
+                         schema => #{},
+                         default => [],
+                         description => <<"Request Header">>},
+            method => #{type => string,
+                        enum => [<<"GET">>,<<"PUT">>,<<"POST">>,<<"DELETE">>,
+                                 <<"get">>,<<"put">>,<<"post">>,<<"delete">>],
+                        default => <<"POST">>,
+                        description => <<"Request Method">>}
+        }).
+
+-define(ACTION_PARAMS_SPEC, #{
+            '$resource' => #{type => string,
+                             required => true,
+                             description => <<"Bind a resource to this action">>},
+            template => #{type => object,
+                          schema => #{},
+                          required => false,
+                          description => <<"Repubilsh To which topic">>}
+        }).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
 
@@ -43,7 +55,7 @@
 -rule_action(#{name => publish_action,
                for => 'message.publish',
                func => forward_publish_action,
-               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
+               params => ?ACTION_PARAMS_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Messages to Web Server"
               }).
@@ -51,8 +63,7 @@
 -rule_action(#{name => event_action,
                for => '$events',
                func => forward_event_action,
-               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
-                           %template => json},
+               params => ?ACTION_PARAMS_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Events to Web Server"
               }).
@@ -67,7 +78,8 @@
         , forward_event_action/1
         ]).
 
--export([feed_template/2]).
+%% debug
+-export([feed_template/2, parse_action_params/1]).
 
 %%------------------------------------------------------------------------------
 %% Actions for web hook
@@ -75,7 +87,6 @@
 
 -spec(on_resource_create(binary(), map()) -> map()).
 on_resource_create(_Name, Conf) ->
-    validate_resource_config(Conf, ?RESOURCE_CONFIG_SPEC),
     Conf.
 
 %% An action that forwards publish messages to a remote web server.
@@ -118,15 +129,15 @@ http_request(Method, Req, HTTPOpts, Opts, Times) ->
         Other -> Other
     end.
 
-validate_resource_config(_Config, _ConfigSepc) ->
-    %% erlang:error(invaild_config)
-    ok.
-
 parse_action_params(Params = #{url := Url}) ->
-    #{url => str(Url),
-      headers => headers(maps:get(headers, Params, undefined)),
-      method => method(maps:get(method, Params, <<"POST">>)),
-      template => maps:get(template, Params, undefined)}.
+    try
+        #{url => str(Url),
+          headers => headers(maps:get(headers, Params, undefined)),
+          method => method(maps:get(method, Params, <<"POST">>)),
+          template => maps:get(template, Params, undefined)}
+    catch _:_ ->
+        throw({invalid_params, Params})
+    end.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
@@ -134,18 +145,20 @@ method(PUT) when PUT == <<"PUT">>; PUT == <<"put">> -> put;
 method(DEL) when DEL == <<"DELETE">>; DEL == <<"delete">> -> delete.
 
 headers(undefined) -> [];
-headers(Headers) ->
-    [{str(K), str(V)} || {K, V} <- Headers].
+headers(Headers) when is_map(Headers) ->
+    maps:fold(fun(K, V, Acc) ->
+            [{str(K), str(V)} | Acc]
+        end, [], Headers).
 
 feed_template(undefined, Envs) ->
     maps:with([event, client_id, username], Envs);
 feed_template(Template, Envs) when is_list(Template) ->
-    lists:foldr(
-        fun({K, V}, Acc) ->
-               [{K, feed_template(V, Envs)} | Acc];
-           (V, Acc) ->
-               [feed_template(V, Envs) | Acc]
-        end, [], Template);
+    [feed_template(T, Envs) || T <- Template];
+feed_template(Template, Envs) when is_map(Template) ->
+    maps:fold(
+        fun(K, V, Acc) ->
+            Acc#{K => feed_template(V, Envs)}
+        end, #{}, Template);
 feed_template(<<"${", Bin/binary>>, Envs) ->
     Val = binary:part(Bin, {0, byte_size(Bin)-1}),
     feed_val(Val, Envs);
@@ -160,4 +173,5 @@ feed_val(Val, Envs) ->
     end.
 
 str(Str) when is_list(Str) -> Str;
+str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
 str(Bin) when is_binary(Bin) -> binary_to_list(Bin).
