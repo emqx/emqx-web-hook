@@ -18,19 +18,39 @@
 -include_lib("emqx/include/emqx.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
--define(RESOURCE_CONFIG_SPEC,
-        #{url => #{type => url,
-                   required => true,
-                   description => <<"Request URL">>},
-          headers => #{type => object,
-                       required => false,
-                       default => #{},
-                       description => <<"Request Header">>},
-          method => #{type => enum,
-                      enum => ['GET','PUT','POST','DELETE'],
-                      required => false,
-                      default => 'POST',
-                      description => <<"Request Method">>}}).
+-define(RESOURCE_CONFIG_SPEC, #{
+            url => #{type => string,
+                     format => url,
+                     required => true,
+                     description => <<"Request URL">>},
+            headers => #{type => array,
+                         items => #{
+                            type => object,
+                            schema => #{
+                                key => #{type => string, required => true,
+                                         description => <<"Header Key">>},
+                                value => #{type => string, required => true,
+                                           description => <<"Header Value">>}
+                            }
+                         },
+                         default => [],
+                         description => <<"Request Header">>},
+            method => #{type => string,
+                        enum => [<<"GET">>,<<"PUT">>,<<"POST">>,<<"DELETE">>,
+                                 <<"get">>,<<"put">>,<<"post">>,<<"delete">>],
+                        default => <<"POST">>,
+                        description => <<"Request Method">>}
+        }).
+
+-define(ACTION_PARAMS_SPEC, #{
+            '$resource' => #{type => string,
+                             required => true,
+                             description => <<"Bind a resource to this action">>},
+            template => #{type => object,
+                          schema => #{},
+                          required => false,
+                          description => <<"Repubilsh To which topic">>}
+        }).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
 
@@ -43,7 +63,7 @@
 -rule_action(#{name => publish_action,
                for => 'message.publish',
                func => forward_publish_action,
-               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
+               params => ?ACTION_PARAMS_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Messages to Web Server"
               }).
@@ -51,8 +71,7 @@
 -rule_action(#{name => event_action,
                for => '$events',
                func => forward_event_action,
-               params => #{'$resource' => ?RESOURCE_TYPE_WEBHOOK},
-                           %template => json},
+               params => ?ACTION_PARAMS_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Events to Web Server"
               }).
@@ -75,7 +94,6 @@
 
 -spec(on_resource_create(binary(), map()) -> map()).
 on_resource_create(_Name, Conf) ->
-    validate_resource_config(Conf, ?RESOURCE_CONFIG_SPEC),
     Conf.
 
 %% An action that forwards publish messages to a remote web server.
@@ -117,10 +135,6 @@ http_request(Method, Req, HTTPOpts, Opts, Times) ->
             http_request(Method, Req, HTTPOpts, Opts, Times+1);
         Other -> Other
     end.
-
-validate_resource_config(_Config, _ConfigSepc) ->
-    %% erlang:error(invaild_config)
-    ok.
 
 parse_action_params(Params = #{url := Url}) ->
     #{url => str(Url),
