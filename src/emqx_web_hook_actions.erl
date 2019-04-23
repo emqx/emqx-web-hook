@@ -23,16 +23,8 @@
                      format => url,
                      required => true,
                      description => <<"Request URL">>},
-            headers => #{type => array,
-                         items => #{
-                            type => object,
-                            schema => #{
-                                key => #{type => string, required => true,
-                                         description => <<"Header Key">>},
-                                value => #{type => string, required => true,
-                                           description => <<"Header Value">>}
-                            }
-                         },
+            headers => #{type => object,
+                         schema => #{},
                          default => [],
                          description => <<"Request Header">>},
             method => #{type => string,
@@ -86,7 +78,8 @@
         , forward_event_action/1
         ]).
 
--export([feed_template/2]).
+%% debug
+-export([feed_template/2, parse_action_params/1]).
 
 %%------------------------------------------------------------------------------
 %% Actions for web hook
@@ -137,10 +130,14 @@ http_request(Method, Req, HTTPOpts, Opts, Times) ->
     end.
 
 parse_action_params(Params = #{url := Url}) ->
-    #{url => str(Url),
-      headers => headers(maps:get(headers, Params, undefined)),
-      method => method(maps:get(method, Params, <<"POST">>)),
-      template => maps:get(template, Params, undefined)}.
+    try
+        #{url => str(Url),
+          headers => headers(maps:get(headers, Params, undefined)),
+          method => method(maps:get(method, Params, <<"POST">>)),
+          template => maps:get(template, Params, undefined)}
+    catch _:_ ->
+        throw({invalid_params, Params})
+    end.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
@@ -148,18 +145,20 @@ method(PUT) when PUT == <<"PUT">>; PUT == <<"put">> -> put;
 method(DEL) when DEL == <<"DELETE">>; DEL == <<"delete">> -> delete.
 
 headers(undefined) -> [];
-headers(Headers) ->
-    [{str(K), str(V)} || {K, V} <- Headers].
+headers(Headers) when is_map(Headers) ->
+    maps:fold(fun(K, V, Acc) ->
+            [{str(K), str(V)} | Acc]
+        end, [], Headers).
 
 feed_template(undefined, Envs) ->
     maps:with([event, client_id, username], Envs);
 feed_template(Template, Envs) when is_list(Template) ->
-    lists:foldr(
-        fun({K, V}, Acc) ->
-               [{K, feed_template(V, Envs)} | Acc];
-           (V, Acc) ->
-               [feed_template(V, Envs) | Acc]
-        end, [], Template);
+    [feed_template(T, Envs) || T <- Template];
+feed_template(Template, Envs) when is_map(Template) ->
+    maps:fold(
+        fun(K, V, Acc) ->
+            Acc#{K => feed_template(V, Envs)}
+        end, #{}, Template);
 feed_template(<<"${", Bin/binary>>, Envs) ->
     Val = binary:part(Bin, {0, byte_size(Bin)-1}),
     feed_val(Val, Envs);
@@ -174,4 +173,5 @@ feed_val(Val, Envs) ->
     end.
 
 str(Str) when is_list(Str) -> Str;
+str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
 str(Bin) when is_binary(Bin) -> binary_to_list(Bin).
