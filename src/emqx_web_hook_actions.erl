@@ -36,16 +36,26 @@
                         description => <<"Request Method">>}
         }).
 
--define(ACTION_PARAMS_SPEC, #{
-            '$resource' => #{type => string,
-                             required => true,
-                             title => <<"Resource ID">>,
-                             description => <<"Bind a resource to this action">>},
-            template => #{type => object,
-                          schema => #{},
-                          required => false,
-                          title => <<"Payload Template">>,
-                          description => <<"The payload template to be filled with variables before sending messages">>}
+-define(ACTION_PARAM_RESOURCE, #{
+            type => string,
+            required => true,
+            title => <<"Resource ID">>,
+            description => <<"Bind a resource to this action">>
+        }).
+
+-define(ACTION_MSG_SPEC, #{
+            '$resource' => ?ACTION_PARAM_RESOURCE
+        }).
+
+-define(ACTION_EVENT_SPEC, #{
+            '$resource' => ?ACTION_PARAM_RESOURCE,
+            'template' => #{
+                type => object,
+                schema => #{},
+                required => false,
+                title => <<"Payload Template">>,
+                description => <<"The payload template to be filled with variables before sending messages">>
+            }
         }).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
@@ -59,7 +69,7 @@
 -rule_action(#{name => publish_action,
                for => 'message.publish',
                func => forward_publish_action,
-               params => ?ACTION_PARAMS_SPEC,
+               params => ?ACTION_MSG_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Messages to Web Server"
               }).
@@ -67,7 +77,7 @@
 -rule_action(#{name => event_action,
                for => '$events',
                func => forward_event_action,
-               params => ?ACTION_PARAMS_SPEC,
+               params => ?ACTION_EVENT_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Events to Web Server"
               }).
@@ -106,8 +116,8 @@ forward_publish_action(Params) ->
 forward_event_action(Params) ->
     #{url := Url, headers := Headers, method := Method, template := Template}
         = parse_action_params(Params),
-    fun(_Selected, Envs) ->
-        http_request(Url, Headers, Method, feed_template(Template, Envs))
+    fun(Selected, _Envs) ->
+        http_request(Url, Headers, Method, feed_template(Template, Selected))
     end.
 
 %%------------------------------------------------------------------------------
@@ -153,24 +163,24 @@ headers(Headers) when is_map(Headers) ->
             [{str(K), str(V)} | Acc]
         end, [], Headers).
 
-feed_template(undefined, Envs) ->
-    maps:with([event, client_id, username], Envs);
-feed_template(Template, Envs) when is_list(Template) ->
-    [feed_template(T, Envs) || T <- Template];
-feed_template(Template, Envs) when is_map(Template) ->
+feed_template(undefined, Selected) ->
+    maps:with([event, client_id, username], Selected);
+feed_template(Template, Selected) when is_list(Template) ->
+    [feed_template(T, Selected) || T <- Template];
+feed_template(Template, Selected) when is_map(Template) ->
     maps:fold(
         fun(K, V, Acc) ->
-            Acc#{K => feed_template(V, Envs)}
+            Acc#{K => feed_template(V, Selected)}
         end, #{}, Template);
-feed_template(<<"${", Bin/binary>>, Envs) ->
+feed_template(<<"${", Bin/binary>>, Selected) ->
     Val = binary:part(Bin, {0, byte_size(Bin)-1}),
-    feed_val(Val, Envs);
-feed_template(Bin, _Envs) ->
+    feed_val(Val, Selected);
+feed_template(Bin, _Selected) ->
     Bin.
 
-feed_val(Val, Envs) ->
+feed_val(Val, Selected) ->
     try V = binary_to_existing_atom(Val, utf8),
-        maps:get(V, Envs, null)
+        maps:get(V, Selected, null)
     catch error:badarg ->
         null
     end.

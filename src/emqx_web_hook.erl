@@ -56,10 +56,15 @@ unload() ->
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(#{client_id := ClientId, username := Username}, 0, _ConnInfo, _Env) ->
+on_client_connected(#{client_id := ClientId, username := Username}, 0, ConnInfo, _Env) ->
+    {IpAddr, _Port} = maps:get(peername, ConnInfo),
     Params = [{action, client_connected},
               {client_id, ClientId},
               {username, Username},
+              {keepalive, maps:get(keepalive, ConnInfo)},
+              {ipaddress, iolist_to_binary(ntoa(IpAddr))},
+              {proto_ver, maps:get(proto_ver, ConnInfo)},
+              {connected_at, emqx_time:now_secs(maps:get(connected_at, ConnInfo))},
               {conn_ack, 0}],
     send_http_request(Params),
     ok;
@@ -325,3 +330,7 @@ unload_(Hook, Fun) ->
         'message.deliver'     -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
     end.
 
+ntoa({0,0,0,0,0,16#ffff,AB,CD}) ->
+    inet_parse:ntoa({AB bsr 8, AB rem 256, CD bsr 8, CD rem 256});
+ntoa(IP) ->
+    inet_parse:ntoa(IP).
