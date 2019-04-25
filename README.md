@@ -15,7 +15,7 @@ dep_emqx_web_hook = git git@github.com:emqx/emqx-web-hook.git master
 
 ##### In relx.config
 
-{emqx_webhook_plugin, load}
+{emqx_web_hook, load}
 
 ##### emqx_web_hook.conf
 
