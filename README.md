@@ -127,7 +127,7 @@ API
 }
 ```
 
-* message.delivered
+* message.deliver
 ```json
 {
     "action":"message_delivered",
