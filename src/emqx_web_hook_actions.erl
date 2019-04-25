@@ -30,7 +30,7 @@
                          title => <<"Request Header">>,
                          description => <<"Request Header">>},
             method => #{type => string,
-                        enum => [<<"GET">>,<<"PUT">>,<<"POST">>,<<"DELETE">>],
+                        enum => [<<"PUT">>,<<"POST">>],
                         default => <<"POST">>,
                         title => <<"Request Method">>,
                         description => <<"Request Method">>}
