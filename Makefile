@@ -14,7 +14,7 @@ BUILD_DEPS = emqx
 dep_emqx = git-emqx https://github.com/emqx/emqx $(BRANCH)
 
 TEST_DEPS = emqx_ct_helper
-dep_emqx_ct_helper = git-emqx https://github.com/emqx/emqx-ct-helpers $(BRANCH)
+dep_emqx_ct_helper = git-emqx https://github.com/emqx/emqx-ct-helpers v1.0
 
 ERLC_OPTS += +debug_info
 
