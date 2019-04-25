@@ -43,6 +43,10 @@ API
     "action":"client_connected",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
+    "keepalive": 60,
+    "ipaddress": "127.0.0.1",
+    "proto_ver": 4,
+    "connected_at": 1556176748,
     "conn_ack":0
 }
 ```
