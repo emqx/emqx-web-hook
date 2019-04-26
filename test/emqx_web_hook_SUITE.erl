@@ -14,6 +14,7 @@
 
 -module(emqx_web_hook_SUITE).
 
+-compile([nowarn_export_all]).
 -compile(export_all).
 
 -include_lib("emqx/include/emqx.hrl").
@@ -21,13 +22,6 @@
 -include_lib("common_test/include/ct.hrl").
 
 -include_lib("eunit/include/eunit.hrl").
-
--type(hooktag() :: atom() | string() | binary()).
-
--record(callback, {tag            :: hooktag(),
-                   function       :: function(),
-                   init_args = [] :: list(any()),
-                   priority  = 0  :: integer()}).
 
 -define(HOOK_LOOKUP(H), emqx_hooks:lookup(list_to_atom(H))).
 
