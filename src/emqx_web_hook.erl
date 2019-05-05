@@ -298,10 +298,11 @@ format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
     {a2b(ClientId), <<"undefined">>}.
 
 encode_payload(Payload) ->
-    case application:get_env(?APP, encode_payload, false) of
-        false -> Payload;
-        true  -> base64:encode(Payload)
-    end.
+    encode_payload(Payload, application:get_env(?APP, encode_payload, undefined)).
+
+encode_payload(Payload, base62) -> emqx_base62:encode(Payload);
+encode_payload(Payload, base64) -> base64:encode(Payload);
+encode_payload(Payload, _) -> Payload.
 
 a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
 a2b(A) -> A.
