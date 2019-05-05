@@ -6,8 +6,8 @@
 ]}.
 
 {mapping, "web.hook.encode_payload", "emqx_web_hook.encode_payload", [
-  {default, false},
-  {datatype, {enum, [true, false]}}
+  {default, undefined},
+  {datatype, {enum, [base62, base64]}}
 ]}.
 
 {mapping, "web.hook.rule.client.connected.$name", "emqx_web_hook.rules", [
