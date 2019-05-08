@@ -1,5 +1,13 @@
+%%-*- mode: erlang -*-
+%% EMQ X R3.0 config mapping
+
 {mapping, "web.hook.api.url", "emqx_web_hook.url", [
   {datatype, string}
+]}.
+
+{mapping, "web.hook.encode_payload", "emqx_web_hook.encode_payload", [
+  {default, undefined},
+  {datatype, {enum, [base62, base64]}}
 ]}.
 
 {mapping, "web.hook.rule.client.connected.$name", "emqx_web_hook.rules", [

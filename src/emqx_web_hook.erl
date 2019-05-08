@@ -196,7 +196,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
                   {topic, Message#message.topic},
                   {qos, Message#message.qos},
                   {retain, Retain},
-                  {payload, Message#message.payload},
+                  {payload, encode_payload(Message#message.payload)},
                   {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params),
         {ok, Message}
@@ -218,7 +218,7 @@ on_message_deliver(#{client_id := ClientId, username := Username}, Message = #me
                 {topic, Message#message.topic},
                 {qos, Message#message.qos},
                 {retain, Retain},
-                {payload, Message#message.payload},
+                {payload, encode_payload(Message#message.payload)},
                 {ts, emqx_time:now_secs(Message#message.timestamp)}],
       send_http_request(Params)
     end, Topic, Filter).
@@ -238,7 +238,7 @@ on_message_acked(#{client_id := ClientId}, Message = #message{topic = Topic, fla
                   {topic, Message#message.topic},
                   {qos, Message#message.qos},
                   {retain, Retain},
-                  {payload, Message#message.payload},
+                  {payload, encode_payload(Message#message.payload)},
                   {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params)
       end, Topic, Filter).
@@ -296,6 +296,13 @@ format_from(#message{from = ClientId, headers = #{username := Username}}) ->
     {a2b(ClientId), a2b(Username)};
 format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
     {a2b(ClientId), <<"undefined">>}.
+
+encode_payload(Payload) ->
+    encode_payload(Payload, application:get_env(?APP, encode_payload, undefined)).
+
+encode_payload(Payload, base62) -> emqx_base62:encode(Payload);
+encode_payload(Payload, base64) -> base64:encode(Payload);
+encode_payload(Payload, _) -> Payload.
 
 a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
 a2b(A) -> A.
