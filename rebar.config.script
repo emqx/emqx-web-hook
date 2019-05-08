@@ -8,4 +8,26 @@ CONFIG1 = case os:getenv("TRAVIS") of
                   CONFIG
           end,
 
-CONFIG1.
+CUR_BRANCH = os:cmd("git branch | grep -e '^*' | cut -d' ' -f 2") -- "\n",
+
+BRANCH = case lists:member(CUR_BRANCH, ["master", "develop"]) of
+             true -> CUR_BRANCH;
+             false -> "develop-3.2"
+         end,
+
+DEPS = case lists:keyfind(deps, 1, CONFIG1) of
+           {_, Deps} -> Deps;
+           _ -> []
+       end,
+
+UrlPrefix = "https://github.com/emqx/",
+
+EMQX = {emqx, {git, UrlPrefix ++ "emqx", {branch, BRANCH}}},
+
+EMQX_RULE_ENGINE = {emqx_rule_engine, {git, UrlPrefix ++ "emqx-rule-engine", {branch, BRANCH}}},
+
+NewDeps = [EMQX, EMQX_RULE_ENGINE | DEPS],
+
+CONFIG2 = lists:keystore(deps, 1, CONFIG1, {deps, NewDeps}),
+
+CONFIG2.
