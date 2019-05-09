@@ -43,19 +43,8 @@
             description => <<"Bind a resource to this action">>
         }).
 
--define(ACTION_MSG_SPEC, #{
+-define(ACTION_DATA_SPEC, #{
             '$resource' => ?ACTION_PARAM_RESOURCE
-        }).
-
--define(ACTION_EVENT_SPEC, #{
-            '$resource' => ?ACTION_PARAM_RESOURCE,
-            'template' => #{
-                type => object,
-                schema => #{},
-                required => false,
-                title => <<"Payload Template">>,
-                description => <<"The payload template to be filled with variables before sending messages">>
-            }
         }).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
@@ -66,20 +55,12 @@
                  description => "WebHook Resource"
                 }).
 
--rule_action(#{name => publish_action,
+-rule_action(#{name => data_to_webserver,
                for => 'message.publish',
-               func => forward_publish_action,
-               params => ?ACTION_MSG_SPEC,
+               func => data_to_webserver,
+               params => ?ACTION_DATA_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
                description => "Forward Messages to Web Server"
-              }).
-
--rule_action(#{name => event_action,
-               for => '$events',
-               func => forward_event_action,
-               params => ?ACTION_EVENT_SPEC,
-               type => ?RESOURCE_TYPE_WEBHOOK,
-               description => "Forward Events to Web Server"
               }).
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
@@ -90,8 +71,7 @@
 
 -export([on_resource_create/2]).
 
--export([ forward_publish_action/1
-        , forward_event_action/1
+-export([ data_to_webserver/1
         ]).
 
 %%------------------------------------------------------------------------------
@@ -103,22 +83,14 @@ on_resource_create(_Name, Conf) ->
     Conf.
 
 %% An action that forwards publish messages to a remote web server.
--spec(forward_publish_action(#{url() := string()}) -> action_fun()).
-forward_publish_action(Params) ->
+-spec(data_to_webserver(#{url() := string()}) -> action_fun()).
+data_to_webserver(Params) ->
     #{url := Url, headers := Headers, method := Method}
         = parse_action_params(Params),
     fun(Selected, _Envs) ->
         http_request(Url, Headers, Method, Selected)
     end.
 
-%% An action that forwards events to a remote web server.
--spec(forward_event_action(#{url() := string()}) -> action_fun()).
-forward_event_action(Params) ->
-    #{url := Url, headers := Headers, method := Method, template := Template}
-        = parse_action_params(Params),
-    fun(Selected, _Envs) ->
-        http_request(Url, Headers, Method, feed_template(Template, Selected))
-    end.
 
 %%------------------------------------------------------------------------------
 %% Internal functions
@@ -162,28 +134,6 @@ headers(Headers) when is_map(Headers) ->
     maps:fold(fun(K, V, Acc) ->
             [{str(K), str(V)} | Acc]
         end, [], Headers).
-
-feed_template(undefined, Selected) ->
-    maps:with([event, client_id, username], Selected);
-feed_template(Template, Selected) when is_list(Template) ->
-    [feed_template(T, Selected) || T <- Template];
-feed_template(Template, Selected) when is_map(Template) ->
-    maps:fold(
-        fun(K, V, Acc) ->
-            Acc#{K => feed_template(V, Selected)}
-        end, #{}, Template);
-feed_template(<<"${", Bin/binary>>, Selected) ->
-    Val = binary:part(Bin, {0, byte_size(Bin)-1}),
-    feed_val(Val, Selected);
-feed_template(Bin, _Selected) ->
-    Bin.
-
-feed_val(Val, Selected) ->
-    try V = binary_to_existing_atom(Val, utf8),
-        maps:get(V, Selected, null)
-    catch error:badarg ->
-        null
-    end.
 
 str(Str) when is_list(Str) -> Str;
 str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
