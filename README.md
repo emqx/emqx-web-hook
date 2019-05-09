@@ -6,8 +6,11 @@ EMQ X Webhook plugin.
 
 ##### emqx_web_hook.conf
 
-```
+```properties
 web.hook.api.url = http://127.0.0.1:8080
+
+## Encode message payload field
+## web.hook.encode_payload = base64
 
 web.hook.rule.client.connected.1     = {"action": "on_client_connected"}
 web.hook.rule.client.disconnected.1  = {"action": "on_client_disconnected"}
