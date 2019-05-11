@@ -25,6 +25,7 @@
         ]).
 
 start(_StartType, _StartArgs) ->
+    {ok, _} = emqx_web_hook_metrics:start_link(),
     {ok, Sup} = emqx_web_hook_sup:start_link(),
     emqx_web_hook:load(),
     emqx_web_hook_cfg:register(),
