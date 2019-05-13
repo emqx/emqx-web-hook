@@ -110,15 +110,15 @@ init([]) ->
     {ok, #{}, hibernate}.
 
 handle_call(Req, _From, State) ->
-    ?LOG(error, "[Web Hook] Unexpected call: ~p", [Req]),
+    ?LOG(error, "[WebHook] Unexpected call: ~p", [Req]),
     {reply, ignored, State}.
 
 handle_cast(Msg, State) ->
-    ?LOG(error, "[Web Hook] Unexpected cast: ~p", [Msg]),
+    ?LOG(error, "[WebHook] Unexpected cast: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Info, State) ->
-    ?LOG(error, "[Web Hook] Unexpected info: ~p", [Info]),
+    ?LOG(error, "[WebHook] Unexpected info: ~p", [Info]),
     {noreply, State}.
 
 terminate(_Reason, #{}) ->

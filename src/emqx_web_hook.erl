@@ -22,6 +22,10 @@
         , unload/0
         ]).
 
+-export([ get_metrics/0
+        , get_metrics/1
+        ]).
+
 -export([ on_client_connected/4
         , on_client_disconnected/3
         ]).
@@ -51,6 +55,18 @@ unload() ->
       fun({Hook, Fun, _Filter}) ->
           unload_(Hook, binary_to_atom(Fun, utf8))
       end, parse_rule(application:get_env(?APP, rules, []))).
+
+%%--------------------------------------------------------------------
+%% Metrics
+%%--------------------------------------------------------------------
+
+get_metrics() ->
+    [{Node, get_metrics(Node)} || Node <- ekka_mnesia:running_nodes()].
+
+get_metrics(Node) when Node =:= node() ->
+    emqx_metrics:all();
+get_metrics(Node) ->
+    rpc_call(Node, get_metrics, [Node]).
 
 %%--------------------------------------------------------------------
 %% Client connected
@@ -257,6 +273,12 @@ on_message_acked(#{client_id := ClientId}, Message = #message{topic = Topic, fla
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+
+rpc_call(Node, Fun, Args) ->
+    case rpc:call(Node, ?MODULE, Fun, Args) of
+        {badrpc, Reason} -> {error, Reason};
+        Res -> Res
+    end.
 
 send_http_request(Params) ->
     Params1 = jsx:encode(Params),
