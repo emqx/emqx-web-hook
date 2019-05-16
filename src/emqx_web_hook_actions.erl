@@ -56,7 +56,7 @@
                 }).
 
 -rule_action(#{name => data_to_webserver,
-               for => 'message.publish',
+               for => '$any',
                func => data_to_webserver,
                params => ?ACTION_DATA_SPEC,
                type => ?RESOURCE_TYPE_WEBHOOK,
