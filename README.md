@@ -4,23 +4,13 @@ emqx-web-hook
 
 EMQ X Webhook plugin.
 
-Setup
------
-
-##### In Makefile,
-
-DEPS += emqx_web_hook
-
-dep_emqx_web_hook = git git@github.com:emqx/emqx-web-hook.git master
-
-##### In relx.config
-
-{emqx_webhook_plugin, load}
-
 ##### emqx_web_hook.conf
 
-```
-web.hook.api.url = http://127.0.0.1
+```properties
+web.hook.api.url = http://127.0.0.1:8080
+
+## Encode message payload field
+## web.hook.encode_payload = base64
 
 web.hook.rule.client.connected.1     = {"action": "on_client_connected"}
 web.hook.rule.client.disconnected.1  = {"action": "on_client_disconnected"}
@@ -31,7 +21,7 @@ web.hook.rule.session.subscribed.1   = {"action": "on_session_subscribed"}
 web.hook.rule.session.unsubscribed.1 = {"action": "on_session_unsubscribed"}
 web.hook.rule.session.terminated.1   = {"action": "on_session_terminated"}
 web.hook.rule.message.publish.1      = {"action": "on_message_publish"}
-web.hook.rule.message.delivered.1    = {"action": "on_message_delivered"}
+web.hook.rule.message.deliver.1    = {"action": "on_message_deliver"}
 web.hook.rule.message.acked.1        = {"action": "on_message_acked"}
 ```
 
@@ -43,6 +33,10 @@ API
     "action":"client_connected",
     "client_id":"C_1492410235117",
     "username":"C_1492410235117",
+    "keepalive": 60,
+    "ipaddress": "127.0.0.1",
+    "proto_ver": 4,
+    "connected_at": 1556176748,
     "conn_ack":0
 }
 ```
@@ -136,7 +130,7 @@ API
 }
 ```
 
-* message.delivered
+* message.deliver
 ```json
 {
     "action":"message_delivered",

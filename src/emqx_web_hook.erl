@@ -56,10 +56,15 @@ unload() ->
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(#{client_id := ClientId, username := Username}, 0, _ConnInfo, _Env) ->
+on_client_connected(#{client_id := ClientId, username := Username}, 0, ConnInfo, _Env) ->
+    {IpAddr, _Port} = maps:get(peername, ConnInfo),
     Params = [{action, client_connected},
               {client_id, ClientId},
               {username, Username},
+              {keepalive, maps:get(keepalive, ConnInfo)},
+              {ipaddress, iolist_to_binary(ntoa(IpAddr))},
+              {proto_ver, maps:get(proto_ver, ConnInfo)},
+              {connected_at, emqx_time:now_secs(maps:get(connected_at, ConnInfo))},
               {conn_ack, 0}],
     send_http_request(Params),
     ok;
@@ -191,7 +196,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
                   {topic, Message#message.topic},
                   {qos, Message#message.qos},
                   {retain, Retain},
-                  {payload, Message#message.payload},
+                  {payload, encode_payload(Message#message.payload)},
                   {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params),
         {ok, Message}
@@ -213,7 +218,7 @@ on_message_deliver(#{client_id := ClientId, username := Username}, Message = #me
                 {topic, Message#message.topic},
                 {qos, Message#message.qos},
                 {retain, Retain},
-                {payload, Message#message.payload},
+                {payload, encode_payload(Message#message.payload)},
                 {ts, emqx_time:now_secs(Message#message.timestamp)}],
       send_http_request(Params)
     end, Topic, Filter).
@@ -233,7 +238,7 @@ on_message_acked(#{client_id := ClientId}, Message = #message{topic = Topic, fla
                   {topic, Message#message.topic},
                   {qos, Message#message.qos},
                   {retain, Retain},
-                  {payload, Message#message.payload},
+                  {payload, encode_payload(Message#message.payload)},
                   {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params)
       end, Topic, Filter).
@@ -292,6 +297,13 @@ format_from(#message{from = ClientId, headers = #{username := Username}}) ->
 format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
     {a2b(ClientId), <<"undefined">>}.
 
+encode_payload(Payload) ->
+    encode_payload(Payload, application:get_env(?APP, encode_payload, undefined)).
+
+encode_payload(Payload, base62) -> emqx_base62:encode(Payload);
+encode_payload(Payload, base64) -> base64:encode(Payload);
+encode_payload(Payload, _) -> Payload.
+
 a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
 a2b(A) -> A.
 
@@ -325,3 +337,7 @@ unload_(Hook, Fun) ->
         'message.deliver'     -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
     end.
 
+ntoa({0,0,0,0,0,16#ffff,AB,CD}) ->
+    inet_parse:ntoa({AB bsr 8, AB rem 256, CD bsr 8, CD rem 256});
+ntoa(IP) ->
+    inet_parse:ntoa(IP).
