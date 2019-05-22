@@ -22,25 +22,33 @@
             url => #{type => string,
                      format => url,
                      required => true,
-                     title => <<"Request URL">>,
-                     description => <<"Request URL">>},
+                     title => #{en => <<"Request URL">>,
+                                zh => <<"请求 URL">>},
+                     description => #{en => <<"Request URL">>,
+                                      zh => <<"请求 URL">>}},
             headers => #{type => object,
                          schema => #{},
                          default => #{},
-                         title => <<"Request Header">>,
-                         description => <<"Request Header">>},
+                         title => #{en => <<"Request Header">>,
+                                    zh => <<"请求头">>},
+                         description => #{en => <<"Request Header">>,
+                                          zh => <<"请求头">>}},
             method => #{type => string,
                         enum => [<<"PUT">>,<<"POST">>],
                         default => <<"POST">>,
-                        title => <<"Request Method">>,
-                        description => <<"Request Method">>}
+                        title => #{en => <<"Request Method">>,
+                                   zh => <<"请求方法">>},
+                        description => #{en => <<"Request Method">>,
+                                         zh => <<"请求方法">>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
             type => string,
             required => true,
-            title => <<"Resource ID">>,
-            description => <<"Bind a resource to this action">>
+            title => #{en => <<"Resource ID">>,
+                       zh => <<"资源 ID">>},
+            description => #{en => <<"Bind a resource to this action">>,
+                             zh => <<"给动作绑定一个资源">>}
         }).
 
 -define(ACTION_DATA_SPEC, #{
@@ -52,15 +60,21 @@
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
                  params => ?RESOURCE_CONFIG_SPEC,
-                 description => "WebHook Resource"
+                 title => #{en => <<"WebHook Resource">>,
+                            zh => <<"WebHook 资源">>},
+                 description => #{en => <<"WebHook Resource">>,
+                                  zh => <<"WebHook 资源">>}
                 }).
 
 -rule_action(#{name => data_to_webserver,
                for => '$any',
                func => data_to_webserver,
                params => ?ACTION_DATA_SPEC,
-               type => ?RESOURCE_TYPE_WEBHOOK,
-               description => "Forward Messages to Web Server"
+               types => [?RESOURCE_TYPE_WEBHOOK],
+               title => #{en => <<"Data to Web Server">>,
+                          zh => <<"发送数据到 Web 服务">>},
+               description => #{en => <<"Forward Messages to Web Server">>,
+                                zh => <<"将数据转发给 Web 服务">>}
               }).
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
