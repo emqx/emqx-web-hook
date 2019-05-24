@@ -59,6 +59,7 @@
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
+                 destroy => on_resource_destroy,
                  params => ?RESOURCE_CONFIG_SPEC,
                  title => #{en => <<"WebHook Resource">>,
                             zh => <<"WebHook 资源"/utf8>>},
@@ -83,7 +84,9 @@
 
 -export_type([action_fun/0]).
 
--export([on_resource_create/2]).
+-export([ on_resource_create/2
+        , on_resource_destroy/2
+        ]).
 
 -export([ data_to_webserver/1
         ]).
@@ -95,6 +98,10 @@
 -spec(on_resource_create(binary(), map()) -> map()).
 on_resource_create(_Name, Conf) ->
     Conf.
+
+-spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
+on_resource_destroy(_Name, _Params) ->
+    ok.
 
 %% An action that forwards publish messages to a remote web server.
 -spec(data_to_webserver(#{url() := string()}) -> action_fun()).
