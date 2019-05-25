@@ -22,25 +22,33 @@
             url => #{type => string,
                      format => url,
                      required => true,
-                     title => <<"Request URL">>,
-                     description => <<"Request URL">>},
+                     title => #{en => <<"Request URL">>,
+                                zh => <<"请求 URL"/utf8>>},
+                     description => #{en => <<"Request URL">>,
+                                      zh => <<"请求 URL"/utf8>>}},
             headers => #{type => object,
                          schema => #{},
                          default => #{},
-                         title => <<"Request Header">>,
-                         description => <<"Request Header">>},
+                         title => #{en => <<"Request Header">>,
+                                    zh => <<"请求头"/utf8>>},
+                         description => #{en => <<"Request Header">>,
+                                          zh => <<"请求头"/utf8>>}},
             method => #{type => string,
                         enum => [<<"PUT">>,<<"POST">>],
                         default => <<"POST">>,
-                        title => <<"Request Method">>,
-                        description => <<"Request Method">>}
+                        title => #{en => <<"Request Method">>,
+                                   zh => <<"请求方法"/utf8>>},
+                        description => #{en => <<"Request Method">>,
+                                         zh => <<"请求方法"/utf8>>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
             type => string,
             required => true,
-            title => <<"Resource ID">>,
-            description => <<"Bind a resource to this action">>
+            title => #{en => <<"Resource ID">>,
+                       zh => <<"资源 ID"/utf8>>},
+            description => #{en => <<"Bind a resource to this action">>,
+                             zh => <<"给动作绑定一个资源"/utf8>>}
         }).
 
 -define(ACTION_DATA_SPEC, #{
@@ -51,16 +59,23 @@
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
+                 destroy => on_resource_destroy,
                  params => ?RESOURCE_CONFIG_SPEC,
-                 description => "WebHook Resource"
+                 title => #{en => <<"WebHook">>,
+                            zh => <<"WebHook"/utf8>>},
+                 description => #{en => <<"WebHook">>,
+                                  zh => <<"WebHook"/utf8>>}
                 }).
 
 -rule_action(#{name => data_to_webserver,
                for => '$any',
                func => data_to_webserver,
                params => ?ACTION_DATA_SPEC,
-               type => ?RESOURCE_TYPE_WEBHOOK,
-               description => "Forward Messages to Web Server"
+               types => [?RESOURCE_TYPE_WEBHOOK],
+               title => #{en => <<"Data to Web Server">>,
+                          zh => <<"发送数据到 Web 服务"/utf8>>},
+               description => #{en => <<"Forward Messages to Web Server">>,
+                                zh => <<"将数据转发给 Web 服务"/utf8>>}
               }).
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
@@ -69,7 +84,9 @@
 
 -export_type([action_fun/0]).
 
--export([on_resource_create/2]).
+-export([ on_resource_create/2
+        , on_resource_destroy/2
+        ]).
 
 -export([ data_to_webserver/1
         ]).
@@ -81,6 +98,10 @@
 -spec(on_resource_create(binary(), map()) -> map()).
 on_resource_create(_Name, Conf) ->
     Conf.
+
+-spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
+on_resource_destroy(_Name, _Params) ->
+    ok.
 
 %% An action that forwards publish messages to a remote web server.
 -spec(data_to_webserver(#{url() := string()}) -> action_fun()).
