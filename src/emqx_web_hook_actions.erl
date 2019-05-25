@@ -61,10 +61,10 @@
                  create => on_resource_create,
                  destroy => on_resource_destroy,
                  params => ?RESOURCE_CONFIG_SPEC,
-                 title => #{en => <<"WebHook Resource">>,
-                            zh => <<"WebHook 资源"/utf8>>},
-                 description => #{en => <<"WebHook Resource">>,
-                                  zh => <<"WebHook 资源"/utf8>>}
+                 title => #{en => <<"WebHook">>,
+                            zh => <<"WebHook"/utf8>>},
+                 description => #{en => <<"WebHook">>,
+                                  zh => <<"WebHook"/utf8>>}
                 }).
 
 -rule_action(#{name => data_to_webserver,
