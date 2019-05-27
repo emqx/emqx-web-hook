@@ -27,3 +27,4 @@ emq_web_hook.d
 rebar.lock
 erlang.mk
 rebar3.crashdump
+etc/emqx_web_hook.conf.rendered
