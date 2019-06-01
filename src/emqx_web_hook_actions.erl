@@ -69,7 +69,7 @@
 
 -rule_action(#{name => data_to_webserver,
                for => '$any',
-               func => data_to_webserver,
+               create => on_action_create_data_to_webserver,
                params => ?ACTION_DATA_SPEC,
                types => [?RESOURCE_TYPE_WEBHOOK],
                title => #{en => <<"Data to Web Server">>,
@@ -88,7 +88,7 @@
         , on_resource_destroy/2
         ]).
 
--export([ data_to_webserver/1
+-export([ on_action_create_data_to_webserver/1
         ]).
 
 %%------------------------------------------------------------------------------
@@ -104,8 +104,8 @@ on_resource_destroy(_Name, _Params) ->
     ok.
 
 %% An action that forwards publish messages to a remote web server.
--spec(data_to_webserver(#{url() := string()}) -> action_fun()).
-data_to_webserver(Params) ->
+-spec(on_action_create_data_to_webserver(#{url() := string()}) -> action_fun()).
+on_action_create_data_to_webserver(Params) ->
     #{url := Url, headers := Headers, method := Method}
         = parse_action_params(Params),
     fun(Selected, _Envs) ->
