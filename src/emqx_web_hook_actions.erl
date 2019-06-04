@@ -59,6 +59,7 @@
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
+                 status => on_get_resource_status,
                  destroy => on_resource_destroy,
                  params => ?RESOURCE_CONFIG_SPEC,
                  title => #{en => <<"WebHook">>,
@@ -85,6 +86,7 @@
 -export_type([action_fun/0]).
 
 -export([ on_resource_create/2
+        , on_get_resource_status/2
         , on_resource_destroy/2
         ]).
 
@@ -96,11 +98,16 @@
 %%------------------------------------------------------------------------------
 
 -spec(on_resource_create(binary(), map()) -> map()).
-on_resource_create(_Name, Conf) ->
+on_resource_create(_ResId, Conf) ->
     Conf.
 
+-spec(on_get_resource_status(binary(), map()) -> map()).
+on_get_resource_status(_ResId, _Params) ->
+    %% TODO: check tcp connectivity here
+    #{is_alive => true}.
+
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
-on_resource_destroy(_Name, _Params) ->
+on_resource_destroy(_ResId, _Params) ->
     ok.
 
 %% An action that forwards publish messages to a remote web server.
