@@ -16,6 +16,7 @@
 -module(emqx_web_hook_actions).
 
 -include_lib("emqx/include/emqx.hrl").
+-include_lib("emqx/include/logger.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
@@ -98,13 +99,25 @@
 %%------------------------------------------------------------------------------
 
 -spec(on_resource_create(binary(), map()) -> map()).
-on_resource_create(_ResId, Conf) ->
-    Conf.
+on_resource_create(ResId, Conf = #{<<"url">> := Url}) ->
+    case emqx_rule_utils:http_connectivity(Url) of
+        ok -> Conf;
+        {error, Reason} ->
+            ?LOG(error, "Initiate Resource ~p failed, ResId: ~p, ~0p",
+                [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({connect_failure, Reason})
+    end.
 
 -spec(on_get_resource_status(binary(), map()) -> map()).
-on_get_resource_status(_ResId, _Params) ->
-    %% TODO: check tcp connectivity here
-    #{is_alive => true}.
+on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
+    #{is_alive =>
+        case emqx_rule_utils:http_connectivity(Url) of
+            ok -> true;
+            {error, Reason} ->
+                ?LOG(error, "Connectivity Check for ~p failed, ResId: ~p, ~0p",
+                     [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+                false
+        end}.
 
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
 on_resource_destroy(_ResId, _Params) ->
