@@ -91,7 +91,7 @@
         , on_resource_destroy/2
         ]).
 
--export([ on_action_create_data_to_webserver/1
+-export([ on_action_create_data_to_webserver/2
         ]).
 
 %%------------------------------------------------------------------------------
@@ -124,8 +124,8 @@ on_resource_destroy(_ResId, _Params) ->
     ok.
 
 %% An action that forwards publish messages to a remote web server.
--spec(on_action_create_data_to_webserver(#{url() := string()}) -> action_fun()).
-on_action_create_data_to_webserver(Params) ->
+-spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
+on_action_create_data_to_webserver(_Id, Params) ->
     #{url := Url, headers := Headers, method := Method}
         = parse_action_params(Params),
     fun(Selected, _Envs) ->
