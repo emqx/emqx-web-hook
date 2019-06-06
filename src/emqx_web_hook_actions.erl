@@ -16,6 +16,7 @@
 -module(emqx_web_hook_actions).
 
 -include_lib("emqx/include/emqx.hrl").
+-include_lib("emqx/include/logger.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
@@ -59,6 +60,7 @@
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
+                 status => on_get_resource_status,
                  destroy => on_resource_destroy,
                  params => ?RESOURCE_CONFIG_SPEC,
                  title => #{en => <<"WebHook">>,
@@ -85,10 +87,11 @@
 -export_type([action_fun/0]).
 
 -export([ on_resource_create/2
+        , on_get_resource_status/2
         , on_resource_destroy/2
         ]).
 
--export([ on_action_create_data_to_webserver/1
+-export([ on_action_create_data_to_webserver/2
         ]).
 
 %%------------------------------------------------------------------------------
@@ -96,16 +99,33 @@
 %%------------------------------------------------------------------------------
 
 -spec(on_resource_create(binary(), map()) -> map()).
-on_resource_create(_Name, Conf) ->
-    Conf.
+on_resource_create(ResId, Conf = #{<<"url">> := Url}) ->
+    case emqx_rule_utils:http_connectivity(Url) of
+        ok -> Conf;
+        {error, Reason} ->
+            ?LOG(error, "Initiate Resource ~p failed, ResId: ~p, ~0p",
+                [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({connect_failure, Reason})
+    end.
+
+-spec(on_get_resource_status(binary(), map()) -> map()).
+on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
+    #{is_alive =>
+        case emqx_rule_utils:http_connectivity(Url) of
+            ok -> true;
+            {error, Reason} ->
+                ?LOG(error, "Connectivity Check for ~p failed, ResId: ~p, ~0p",
+                     [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+                false
+        end}.
 
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
-on_resource_destroy(_Name, _Params) ->
+on_resource_destroy(_ResId, _Params) ->
     ok.
 
 %% An action that forwards publish messages to a remote web server.
--spec(on_action_create_data_to_webserver(#{url() := string()}) -> action_fun()).
-on_action_create_data_to_webserver(Params) ->
+-spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
+on_action_create_data_to_webserver(_Id, Params) ->
     #{url := Url, headers := Headers, method := Method}
         = parse_action_params(Params),
     fun(Selected, _Envs) ->
