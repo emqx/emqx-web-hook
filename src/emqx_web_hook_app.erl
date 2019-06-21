@@ -26,7 +26,8 @@
 
 start(_StartType, _StartArgs) ->
     {ok, Sup} = emqx_web_hook_sup:start_link(),
-    emqx_web_hook:load(),
+    ?APP:register_metrics(),
+    ?APP:load(),
     emqx_web_hook_cfg:register(),
     {ok, Sup}.
 
