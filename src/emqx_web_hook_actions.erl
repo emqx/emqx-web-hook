@@ -139,19 +139,20 @@ on_action_create_data_to_webserver(_Id, Params) ->
 
 http_request(Url, Headers, Method, Params) ->
     logger:debug("[WebHook Action] ~s to ~s, headers: ~s, body: ~p", [Method, Url, Headers, Params]),
-    case http_request(Method, ?JSON_REQ(Url, Headers, jsx:encode(Params)),
-                      [{timeout, 5000}], [], 0) of
+    case do_http_request(Method, ?JSON_REQ(Url, Headers, jsx:encode(Params)),
+                         [{timeout, 5000}], [], 0) of
         {ok, _} -> ok;
         {error, Reason} ->
-            logger:error("[WebHook Action] HTTP request error: ~p", [Reason])
+            logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
+            error({http_request_error, Reason})
     end.
 
-http_request(Method, Req, HTTPOpts, Opts, Times) ->
+do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
     %% Resend request, when TCP closed by remotely
     case httpc:request(Method, Req, HTTPOpts, Opts) of
         {error, socket_closed_remotely} when Times < 3 ->
             timer:sleep(trunc(math:pow(10, Times))),
-            http_request(Method, Req, HTTPOpts, Opts, Times+1);
+            do_http_request(Method, Req, HTTPOpts, Opts, Times+1);
         Other -> Other
     end.
 
