@@ -31,9 +31,7 @@ UrlPrefix = "https://github.com/emqx/",
 
 EMQX = {emqx, {git, UrlPrefix ++ "emqx", {branch, BRANCH}}},
 
-EMQX_RULE_ENGINE = {emqx_rule_engine, {git, UrlPrefix ++ "emqx-rule-engine", {branch, BRANCH}}},
-
-NewDeps = [EMQX, EMQX_RULE_ENGINE | DEPS],
+NewDeps = [EMQX | DEPS],
 
 CONFIG2 = lists:keystore(deps, 1, CONFIG1, {deps, NewDeps}),
 
