@@ -26,8 +26,8 @@
 -export([ on_client_connected/4
         , on_client_disconnected/3
         ]).
--export([ on_client_subscribe/3
-        , on_client_unsubscribe/3
+-export([ on_client_subscribe/4
+        , on_client_unsubscribe/4
         ]).
 -export([ on_session_created/3
         , on_session_subscribed/4
@@ -112,7 +112,7 @@ on_client_disconnected(_, Reason, _Env) ->
 %% Client subscribe
 %%--------------------------------------------------------------------
 
-on_client_subscribe(#{client_id := ClientId, username := Username}, TopicTable, {Filter}) ->
+on_client_subscribe(#{client_id := ClientId, username := Username}, _Properties, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
       with_filter(
         fun() ->
@@ -130,7 +130,7 @@ on_client_subscribe(#{client_id := ClientId, username := Username}, TopicTable, 
 %% Client unsubscribe
 %%--------------------------------------------------------------------
 
-on_client_unsubscribe(#{client_id := ClientId, username := Username}, TopicTable, {Filter}) ->
+on_client_unsubscribe(#{client_id := ClientId, username := Username}, _Properties, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
       with_filter(
         fun() ->
@@ -336,8 +336,8 @@ load_(Hook, Fun, Params) ->
     case Hook of
         'client.connected'    -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'client.disconnected' -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'client.subscribe'    -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'client.unsubscribe'  -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
+        'client.subscribe'    -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
+        'client.unsubscribe'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'session.created'     -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
         'session.subscribed'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'session.unsubscribed'-> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
@@ -351,8 +351,8 @@ unload_(Hook, Fun) ->
     case Hook of
         'client.connected'    -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'client.disconnected' -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'client.subscribe'    -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'client.unsubscribe'  -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
+        'client.subscribe'    -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
+        'client.unsubscribe'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'session.created'     -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
         'session.subscribed'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'session.unsubscribed'-> emqx:unhook(Hook, fun ?MODULE:Fun/4);
