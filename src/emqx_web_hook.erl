@@ -70,16 +70,16 @@ unload() ->
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(#{client_id := ClientId, username := Username}, 0, ConnInfo, _Env) ->
+on_client_connected(#{client_id := ClientId, username := Username, peername := Peername}, 0, ConnInfo, _Env) ->
     emqx_metrics:inc('web_hook.client_connected'),
-    {IpAddr, _Port} = maps:get(peername, ConnInfo),
+    {IpAddr, _Port} = Peername,
     Params = [{action, client_connected},
               {client_id, ClientId},
               {username, Username},
               {keepalive, maps:get(keepalive, ConnInfo)},
               {ipaddress, iolist_to_binary(ntoa(IpAddr))},
               {proto_ver, maps:get(proto_ver, ConnInfo)},
-              {connected_at, emqx_time:now_secs(maps:get(connected_at, ConnInfo))},
+              {connected_at, emqx_time:now_secs(maps:get(created_at, maps:get(session, ConnInfo)))},
               {conn_ack, 0}],
     send_http_request(Params),
     ok;
