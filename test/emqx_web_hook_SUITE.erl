@@ -36,12 +36,11 @@ groups() ->
 
 init_per_suite(Config) ->
     ok = ekka_mnesia:start(),
-    ok = emqx_rule_registry:mnesia(boot),
-    emqx_ct_helpers:start_apps([emqx, emqx_rule_engine, emqx_web_hook]),
+    emqx_ct_helpers:start_apps([emqx, emqx_web_hook]),
     Config.
 
 end_per_suite(_Config) ->
-    emqx_ct_helpers:stop_apps([emqx_web_hook, emqx_rule_engine, emqx]).
+    emqx_ct_helpers:stop_apps([emqx_web_hook, emqx]).
 
 reload(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
