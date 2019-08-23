@@ -62,12 +62,12 @@ change_config(_Config) ->
 
 validate_web_hook(_Config) ->
     http_server:start_http(),
-    {ok, C} = emqx_client:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
-    {ok, _} = emqx_client:connect(C),
-    emqx_client:subscribe(C, <<"TopicA">>, qos2),
-    emqx_client:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
-    emqx_client:unsubscribe(C, <<"TopicA">>),
-    emqx_client:disconnect(C),
+    {ok, C} = emqtt:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    {ok, _} = emqtt:connect(C),
+    emqtt:subscribe(C, <<"TopicA">>, qos2),
+    emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
+    emqtt:unsubscribe(C, <<"TopicA">>),
+    emqtt:disconnect(C),
     ValidateData = get_http_message(),
     [validate_http_data(A) || A <- ValidateData],
     http_server:stop_http(),
