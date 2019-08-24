@@ -1,4 +1,5 @@
-%% Copyright (c) 2013-2019 EMQ Technologies Co., Ltd. All Rights Reserved.
+%%--------------------------------------------------------------------
+%% Copyright (c) 2019 EMQ Technologies Co., Ltd. All Rights Reserved.
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -11,6 +12,7 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
+%%--------------------------------------------------------------------
 
 -module(emqx_web_hook_SUITE).
 
@@ -82,7 +84,7 @@ get_http_message() ->
 get_http_message(Acc) ->
     receive
         Info -> get_http_message([Info | Acc])
-    after 
+    after
         300 ->
             [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
     end.
@@ -124,7 +126,7 @@ validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">>
     ?assertEqual(false, Retain),
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username),
-    ?assertEqual(<<"TopicA">>, Topic); 
+    ?assertEqual(<<"TopicA">>, Topic);
 validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"client_id">> := ClientId,
                      <<"from_client_id">> := FromClientId,<<"from_username">> := FromUsername,
                      <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := Retain,<<"topic">> := Topic,
