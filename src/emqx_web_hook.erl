@@ -1,4 +1,5 @@
-%% Copyright (c) 2013-2019 EMQ Technologies Co., Ltd. All Rights Reserved.
+%%--------------------------------------------------------------------
+%% Copyright (c) 2019 EMQ Technologies Co., Ltd. All Rights Reserved.
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -11,6 +12,7 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
+%%--------------------------------------------------------------------
 
 -module(emqx_web_hook).
 
@@ -42,17 +44,17 @@
 -define(LOG(Level, Format, Args), emqx_logger:Level("WebHook: " ++ Format, Args)).
 
 register_metrics() ->
-    [emqx_metrics:new(MetricName) || MetricName <- ['web_hook.client_connected',
-                                                    'web_hook.client_disconnected',
-                                                    'web_hook.client_subscribe',
-                                                    'web_hook.client_unsubscribe',
-                                                    'web_hook.session_created',
-                                                    'web_hook.session_subscribed',
-                                                    'web_hook.session_unsubscribed',
-                                                    'web_hook.session_terminated',
-                                                    'web_hook.message_publish',
-                                                    'web_hook.message_deliver',
-                                                    'web_hook.message_acked']].
+    lists:foreach(fun emqx_metrics:new/1, ['web_hook.client_connected',
+                                           'web_hook.client_disconnected',
+                                           'web_hook.client_subscribe',
+                                           'web_hook.client_unsubscribe',
+                                           'web_hook.session_created',
+                                           'web_hook.session_subscribed',
+                                           'web_hook.session_unsubscribed',
+                                           'web_hook.session_terminated',
+                                           'web_hook.message_publish',
+                                           'web_hook.message_deliver',
+                                           'web_hook.message_acked']).
 
 load() ->
     lists:foreach(
