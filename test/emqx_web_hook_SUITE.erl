@@ -64,7 +64,7 @@ change_config(_Config) ->
 
 validate_web_hook(_Config) ->
     http_server:start_http(),
-    {ok, C} = emqtt:start_link([{host, "localhost"}, {client_id, <<"simpleClient">>}, {username, <<"username">>}]),
+    {ok, C} = emqtt:start_link([{host, "localhost"}, {clientid, <<"simpleClient">>}, {username, <<"username">>}]),
     {ok, _} = emqtt:connect(C),
     emqtt:subscribe(C, <<"TopicA">>, qos2),
     emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
@@ -89,34 +89,34 @@ get_http_message(Acc) ->
             [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
     end.
 
-validate_http_data(#{<<"action">> := <<"client_connected">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+validate_http_data(#{<<"action">> := <<"client_connected">>,<<"clientid">> := ClientId, <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"client_id">> := ClientId,
+validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"clientid">> := ClientId,
                 <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"client_subscribe">>,<<"client_id">> := ClientId, <<"topic">> := Topic,
+validate_http_data(#{<<"action">> := <<"client_subscribe">>,<<"clientid">> := ClientId, <<"topic">> := Topic,
                      <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username),
     ?assertEqual(<<"TopicA">>, Topic);
-validate_http_data(#{<<"action">> := <<"client_unsubscribe">>, <<"client_id">> := ClientId,
+validate_http_data(#{<<"action">> := <<"client_unsubscribe">>, <<"clientid">> := ClientId,
                      <<"topic">> := Topic,<<"username">> := Username}) ->
     ?assertEqual(<<"TopicA">>, Topic),
     ?assertEqual(<<"username">>, Username),
     ?assertEqual(<<"simpleClient">>, ClientId);
-validate_http_data(#{<<"action">> := <<"session_created">>,<<"client_id">> := ClientId, <<"username">> := Username}) ->
+validate_http_data(#{<<"action">> := <<"session_created">>,<<"clientid">> := ClientId, <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"session_subscribed">>, <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
+validate_http_data(#{<<"action">> := <<"session_subscribed">>, <<"clientid">> := ClientId, <<"topic">> := Topic}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"TopicA">>, Topic);
 validate_http_data(#{<<"action">> := <<"session_unsubscribed">>,
-                    <<"client_id">> := ClientId, <<"topic">> := Topic}) ->
+                    <<"clientid">> := ClientId, <<"topic">> := Topic}) ->
     ?assertEqual(<<"TopicA">>, Topic),
     ?assertEqual(<<"simpleClient">>, ClientId);
-validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"client_id">> := ClientId}) ->
+validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"clientid">> := ClientId}) ->
     ?assertEqual(<<"simpleClient">>, ClientId);
 validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">> := ClientId,
                      <<"from_username">> := Username, <<"payload">> := Payload,<<"qos">> := Qos,
@@ -127,7 +127,7 @@ validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">>
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username),
     ?assertEqual(<<"TopicA">>, Topic);
-validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"client_id">> := ClientId,
+validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"clientid">> := ClientId,
                      <<"from_client_id">> := FromClientId,<<"from_username">> := FromUsername,
                      <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := Retain,<<"topic">> := Topic,
                      <<"username">> := Username})->
@@ -139,7 +139,7 @@ validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"client_id">> := C
     ?assertEqual(<<"TopicA">>, Topic),
     ?assertEqual(<<"simpleClient">>, FromClientId),
     ?assertEqual(<<"username">>, FromUsername);
-validate_http_data(#{<<"action">> := <<"message_acked">>, <<"client_id">> := ClientId,
+validate_http_data(#{<<"action">> := <<"message_acked">>, <<"clientid">> := ClientId,
                     <<"from_client_id">> := FromClietId, <<"from_username">> := FromUsername,
                     <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := false,<<"topic">> := TopicA}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
