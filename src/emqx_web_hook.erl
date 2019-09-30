@@ -72,12 +72,12 @@ unload() ->
 %% Client connected
 %%--------------------------------------------------------------------
 
-on_client_connected(#{client_id := ClientId, username := Username, peername := Peername}, 0, ConnInfo, _Env) ->
+on_client_connected(#{clientid := ClientId, username := Username, peername := Peername}, 0, ConnInfo, _Env) ->
     emqx_metrics:inc('web_hook.client_connected'),
     {IpAddr, _Port} = Peername,
     Protocol = maps:get(protocol, ConnInfo),
     Params = [{action, client_connected},
-              {client_id, ClientId},
+              {clientid, ClientId},
               {username, Username},
               {ipaddress, iolist_to_binary(ntoa(IpAddr))},
               {keepalive, maps:get(keepalive, Protocol)},
@@ -98,11 +98,11 @@ on_client_disconnected(#{}, auth_failure, _Env) ->
     ok;
 on_client_disconnected(Client, {shutdown, Reason}, Env) when is_atom(Reason) ->
     on_client_disconnected(Reason, Client, Env);
-on_client_disconnected(#{client_id := ClientId, username := Username}, Reason, _Env)
+on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _Env)
     when is_atom(Reason) ->
     emqx_metrics:inc('web_hook.client_disconnected'),
     Params = [{action, client_disconnected},
-              {client_id, ClientId},
+              {clientid, ClientId},
               {username, Username},
               {reason, Reason}],
     send_http_request(Params),
@@ -115,13 +115,13 @@ on_client_disconnected(_, Reason, _Env) ->
 %% Client subscribe
 %%--------------------------------------------------------------------
 
-on_client_subscribe(#{client_id := ClientId, username := Username}, _Properties, TopicTable, {Filter}) ->
+on_client_subscribe(#{clientid := ClientId, username := Username}, _Properties, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
       with_filter(
         fun() ->
           emqx_metrics:inc('web_hook.client_subscribe'),
           Params = [{action, client_subscribe},
-                    {client_id, ClientId},
+                    {clientid, ClientId},
                     {username, Username},
                     {topic, Topic},
                     {opts, Opts}],
@@ -133,13 +133,13 @@ on_client_subscribe(#{client_id := ClientId, username := Username}, _Properties,
 %% Client unsubscribe
 %%--------------------------------------------------------------------
 
-on_client_unsubscribe(#{client_id := ClientId, username := Username}, _Properties, TopicTable, {Filter}) ->
+on_client_unsubscribe(#{clientid := ClientId, username := Username}, _Properties, TopicTable, {Filter}) ->
     lists:foreach(fun({Topic, Opts}) ->
       with_filter(
         fun() ->
           emqx_metrics:inc('web_hook.client_unsubscribe'),
           Params = [{action, client_unsubscribe},
-                    {client_id, ClientId},
+                    {clientid, ClientId},
                     {username, Username},
                     {topic, Topic},
                     {opts, Opts}],
@@ -151,10 +151,10 @@ on_client_unsubscribe(#{client_id := ClientId, username := Username}, _Propertie
 %% Session created
 %%--------------------------------------------------------------------
 
-on_session_created(#{client_id := ClientId}, SessInfo, _Env) ->
+on_session_created(#{clientid := ClientId}, SessInfo, _Env) ->
     emqx_metrics:inc('web_hook.session_created'),
     Params = [{action, session_created},
-              {client_id, ClientId},
+              {clientid, ClientId},
               {username, proplists:get_value(username, SessInfo)}],
     send_http_request(Params),
     ok.
@@ -163,12 +163,12 @@ on_session_created(#{client_id := ClientId}, SessInfo, _Env) ->
 %% Session subscribed
 %%--------------------------------------------------------------------
 
-on_session_subscribed(#{client_id := ClientId}, Topic, Opts, {Filter}) ->
+on_session_subscribed(#{clientid := ClientId}, Topic, Opts, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.session_subscribed'),
         Params = [{action, session_subscribed},
-                  {client_id, ClientId},
+                  {clientid, ClientId},
                   {topic, Topic},
                   {opts, Opts}],
         send_http_request(Params)
@@ -178,12 +178,12 @@ on_session_subscribed(#{client_id := ClientId}, Topic, Opts, {Filter}) ->
 %% Session unsubscribed
 %%--------------------------------------------------------------------
 
-on_session_unsubscribed(#{client_id := ClientId}, Topic, _Opts, {Filter}) ->
+on_session_unsubscribed(#{clientid := ClientId}, Topic, _Opts, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.session_unsubscribed'),
         Params = [{action, session_unsubscribed},
-                  {client_id, ClientId},
+                  {clientid, ClientId},
                   {topic, Topic}],
         send_http_request(Params)
       end, Topic, Filter).
@@ -194,10 +194,10 @@ on_session_unsubscribed(#{client_id := ClientId}, Topic, _Opts, {Filter}) ->
 
 on_session_terminated(Info, {shutdown, Reason}, Env) when is_atom(Reason) ->
     on_session_terminated(Info, Reason, Env);
-on_session_terminated(#{client_id := ClientId}, Reason, _Env) when is_atom(Reason) ->
+on_session_terminated(#{clientid := ClientId}, Reason, _Env) when is_atom(Reason) ->
     emqx_metrics:inc('web_hook.session_terminated'),
     Params = [{action, session_terminated},
-              {client_id, ClientId},
+              {clientid, ClientId},
               {reason, Reason}],
     send_http_request(Params),
     ok;
@@ -232,13 +232,13 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
 %% Message deliver
 %%--------------------------------------------------------------------
 
-on_message_deliver(#{client_id := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_deliver(#{clientid := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
   with_filter(
     fun() ->
       emqx_metrics:inc('web_hook.message_deliver'),
       {FromClientId, FromUsername} = format_from(Message),
       Params = [{action, message_deliver},
-                {client_id, ClientId},
+                {clientid, ClientId},
                 {username, Username},
                 {from_client_id, FromClientId},
                 {from_username, FromUsername},
@@ -254,13 +254,13 @@ on_message_deliver(#{client_id := ClientId, username := Username}, Message = #me
 %% Message acked
 %%--------------------------------------------------------------------
 
-on_message_acked(#{client_id := ClientId}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_acked(#{clientid := ClientId}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.message_acked'),
         {FromClientId, FromUsername} = format_from(Message),
         Params = [{action, message_acked},
-                  {client_id, ClientId},
+                  {clientid, ClientId},
                   {from_client_id, FromClientId},
                   {from_username, FromUsername},
                   {topic, Message#message.topic},
