@@ -208,7 +208,7 @@ on_session_terminated(#{}, Reason, _Env) ->
 
 on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
-on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_publish(Message = #message{topic = Topic, flags = Flags}, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.message_publish'),
@@ -218,7 +218,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
                   {from_username, FromUsername},
                   {topic, Message#message.topic},
                   {qos, Message#message.qos},
-                  {retain, Retain},
+                  {retain, maps:get(retain, Flags, false)},
                   {payload, encode_payload(Message#message.payload)},
                   {ts, emqx_time:now_secs(Message#message.timestamp)}],
         send_http_request(Params),
