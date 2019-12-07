@@ -54,10 +54,10 @@ reload(_Config) ->
 change_config(_Config) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     emqx_web_hook:unload(),
-    HookRules = lists:keydelete("message.deliver", 1, Rules),
+    HookRules = lists:keydelete("message.delivered", 1, Rules),
     application:set_env(emqx_web_hook, rules, HookRules),
     emqx_web_hook:load(),
-    %?assertEqual([], ?HOOK_LOOKUP("message.deliver")),
+    ?assertEqual([], ?HOOK_LOOKUP("message.delivered")),
     emqx_web_hook:unload(),
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
@@ -71,6 +71,7 @@ validate_web_hook(_Config) ->
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
     ValidateData = get_http_message(),
+    ?assertEqual(length(ValidateData), 8),
     [validate_http_data(A) || A <- ValidateData],
     http_server:stop_http(),
     ok.
@@ -127,7 +128,7 @@ validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">>
     ?assertEqual(<<"simpleClient">>, ClientId),
     ?assertEqual(<<"username">>, Username),
     ?assertEqual(<<"TopicA">>, Topic);
-validate_http_data(#{<<"action">> := <<"message_deliver">>, <<"clientid">> := ClientId,
+validate_http_data(#{<<"action">> := <<"message_delivered">>, <<"clientid">> := ClientId,
                      <<"from_client_id">> := FromClientId,<<"from_username">> := FromUsername,
                      <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := Retain,<<"topic">> := Topic,
                      <<"username">> := Username})->

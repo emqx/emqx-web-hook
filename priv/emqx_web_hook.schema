@@ -26,19 +26,11 @@
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.rule.session.created.$name", "emqx_web_hook.rules", [
-  {datatype, string}
-]}.
-
 {mapping, "web.hook.rule.session.subscribed.$name", "emqx_web_hook.rules", [
   {datatype, string}
 ]}.
 
 {mapping, "web.hook.rule.session.unsubscribed.$name", "emqx_web_hook.rules", [
-  {datatype, string}
-]}.
-
-{mapping, "web.hook.rule.session.terminated.$name", "emqx_web_hook.rules", [
   {datatype, string}
 ]}.
 
@@ -50,7 +42,7 @@
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.rule.message.deliver.$name", "emqx_web_hook.rules", [
+{mapping, "web.hook.rule.message.delivered.$name", "emqx_web_hook.rules", [
   {datatype, string}
 ]}.
 
