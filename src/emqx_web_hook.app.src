@@ -3,7 +3,7 @@
   {vsn, "git"},
   {modules, []},
   {registered, [emqx_web_hook_sup]},
-  {applications, [kernel,stdlib,jsx,clique]},
+  {applications, [kernel,stdlib,jsx]},
   {mod, {emqx_web_hook_app,[]}},
   {env, []},
   {licenses, ["Apache-2.0"]},
