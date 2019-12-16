@@ -188,7 +188,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
                   {qos, Message#message.qos},
                   {retain, Retain},
                   {payload, encode_payload(Message#message.payload)},
-                  {ts, emqx_time:now_secs(Message#message.timestamp)}],
+                  {ts, Message#message.timestamp}],
         send_http_request(Params),
         {ok, Message}
       end, Message, Topic, Filter).
@@ -211,7 +211,7 @@ on_message_delivered(#{clientid := ClientId, username := Username}, Message = #m
                 {qos, Message#message.qos},
                 {retain, Retain},
                 {payload, encode_payload(Message#message.payload)},
-                {ts, emqx_time:now_secs(Message#message.timestamp)}],
+                {ts, Message#message.timestamp}],
       send_http_request(Params)
     end, Topic, Filter).
 
@@ -232,7 +232,7 @@ on_message_acked(#{clientid := ClientId}, Message = #message{topic = Topic, flag
                   {qos, Message#message.qos},
                   {retain, Retain},
                   {payload, encode_payload(Message#message.payload)},
-                  {ts, emqx_time:now_secs(Message#message.timestamp)}],
+                  {ts, Message#message.timestamp}],
         send_http_request(Params)
       end, Topic, Filter).
 
