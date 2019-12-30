@@ -221,7 +221,7 @@ on_session_terminated(Info, {shutdown, Reason}, SessInfo, Env) when is_atom(Reas
 on_session_terminated(#{clientid := ClientId}, Reason, _SessInfo, _Env) when is_atom(Reason) ->
     emqx_metrics:inc('web_hook.session_terminated'),
     Params = [{action, session_terminated},
-              {client_id, ClientId},
+              {clientid, ClientId},
               {reason, Reason}],
     send_http_request(Params),
     ok;
@@ -369,6 +369,7 @@ load_(Hook, Fun, Params) ->
         'client.unsubscribe'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'session.subscribed'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'session.unsubscribed'-> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
+        'session.terminated'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
         'message.publish'     -> emqx:hook(Hook, fun ?MODULE:Fun/2, [Params]);
         'message.acked'       -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
         'message.delivered'   -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
@@ -384,6 +385,7 @@ unload_(Hook, Fun) ->
         'client.unsubscribe'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'session.subscribed'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'session.unsubscribed'-> emqx:unhook(Hook, fun ?MODULE:Fun/4);
+        'session.terminated'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
         'message.publish'     -> emqx:unhook(Hook, fun ?MODULE:Fun/2);
         'message.acked'       -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
         'message.delivered'   -> emqx:unhook(Hook, fun ?MODULE:Fun/3)

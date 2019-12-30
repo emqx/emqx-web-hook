@@ -71,7 +71,7 @@ validate_web_hook(_Config) ->
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
     ValidateData = get_http_message(),
-    ?assertEqual(length(ValidateData), 8),
+    ?assertEqual(length(ValidateData), 9),
     [validate_http_data(A) || A <- ValidateData],
     http_server:stop_http(),
     ok.
