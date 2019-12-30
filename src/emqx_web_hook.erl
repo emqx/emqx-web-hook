@@ -36,6 +36,7 @@
         ]).
 -export([ on_session_subscribed/4
         , on_session_unsubscribed/4
+        , on_session_terminated/4
         ]).
 -export([ on_message_publish/2
         , on_message_delivered/3
@@ -53,6 +54,7 @@ register_metrics() ->
                                            'web_hook.client_unsubscribe',
                                            'web_hook.session_subscribed',
                                            'web_hook.session_unsubscribed',
+                                           'web_hook.session_terminated',
                                            'web_hook.message_publish',
                                            'web_hook.message_delivered',
                                            'web_hook.message_acked']).
@@ -209,6 +211,23 @@ on_session_unsubscribed(#{clientid := ClientId}, Topic, _Opts, {Filter}) ->
                   {topic, Topic}],
         send_http_request(Params)
       end, Topic, Filter).
+
+%%--------------------------------------------------------------------
+%% Session terminated
+%%--------------------------------------------------------------------
+
+on_session_terminated(Info, {shutdown, Reason}, SessInfo, Env) when is_atom(Reason) ->
+    on_session_terminated(Info, Reason, SessInfo, Env);
+on_session_terminated(#{clientid := ClientId}, Reason, _SessInfo, _Env) when is_atom(Reason) ->
+    emqx_metrics:inc('web_hook.session_terminated'),
+    Params = [{action, session_terminated},
+              {client_id, ClientId},
+              {reason, Reason}],
+    send_http_request(Params),
+    ok;
+on_session_terminated(#{}, Reason, _SessInfo, _Env) ->
+    ?LOG(error, "Session terminated, cannot encode the reason: ~p", [Reason]),
+    ok.
 
 %%--------------------------------------------------------------------
 %% Message publish

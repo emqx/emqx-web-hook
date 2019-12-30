@@ -42,6 +42,10 @@
   {datatype, string}
 ]}.
 
+{mapping, "web.hook.rule.session.session_terminated.$name", "emqx_web_hook.rules", [
+  {datatype, string}
+]}.
+
 {mapping, "web.hook.rule.message.publish.$name", "emqx_web_hook.rules", [
   {datatype, string}
 ]}.
