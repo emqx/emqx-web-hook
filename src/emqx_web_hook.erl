@@ -17,16 +17,21 @@
 -module(emqx_web_hook).
 
 -include_lib("emqx/include/emqx.hrl").
+-include_lib("emqx/include/logger.hrl").
 
 -define(APP, emqx_web_hook).
 
+-logger_header("[WebHook]").
+
+%% APIs
 -export([ register_metrics/0
         , load/0
         , unload/0
         ]).
 
+%% Hooks callback
 -export([ on_client_connect/3
-        , on_client_connack/3
+        , on_client_connack/4
         ]).
 -export([ on_client_connected/3
         , on_client_disconnected/4
@@ -43,7 +48,9 @@
         , on_message_acked/3
         ]).
 
--define(LOG(Level, Format, Args), emqx_logger:Level("WebHook: " ++ Format, Args)).
+%%--------------------------------------------------------------------
+%% APIs
+%%--------------------------------------------------------------------
 
 register_metrics() ->
     lists:foreach(fun emqx_metrics:new/1, ['web_hook.client_connect',
@@ -75,7 +82,7 @@ unload() ->
 %% Client connect
 %%--------------------------------------------------------------------
 
-on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peerhost := Peerhost}, _ConnPkt, _Env) ->
+on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peername := {Peerhost, _}}, _ConnProp, _Env) ->
     emqx_metrics:inc('web_hook.client_connect'),
     Params = [{action, client_connect},
               {clientid, ClientId},
@@ -85,25 +92,25 @@ on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peerh
               {proto_ver, maps:get(proto_ver, ConnInfo)}],
     send_http_request(Params),
     ok;
-on_client_connect(#{}, _ConnPkt, _Env) ->
+on_client_connect(#{}, _ConnProp, _Env) ->
     ok.
 
 %%--------------------------------------------------------------------
 %% Client connack
 %%--------------------------------------------------------------------
 
-on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peerhost := Peerhost}, _ConnAck, _Env) ->
+on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peername := {Peerhost, _}}, Rc, _AckProp, _Env) ->
     emqx_metrics:inc('web_hook.client_connack'),
-    Params = [{action, client_connected},
+    Params = [{action, client_connack},
               {clientid, ClientId},
               {username, Username},
               {ipaddress, iolist_to_binary(ntoa(Peerhost))},
               {keepalive, maps:get(keepalive, ConnInfo)},
               {proto_ver, maps:get(proto_ver, ConnInfo)},
-              {conn_ack, 0}],
+              {conn_ack, Rc}],
     send_http_request(Params),
     ok;
-on_client_connack(#{}, _ConnAck, _Env) ->
+on_client_connack(#{}, _Rc, _AckProp, _Env) ->
     ok.
 
 %%--------------------------------------------------------------------
@@ -118,8 +125,7 @@ on_client_connected(#{clientid := ClientId, username := Username, peerhost := Pe
               {ipaddress, iolist_to_binary(ntoa(Peerhost))},
               {keepalive, maps:get(keepalive, ConnInfo)},
               {proto_ver, maps:get(proto_ver, ConnInfo)},
-              {connected_at, maps:get(connected_at, ConnInfo)},
-              {conn_ack, 0}],
+              {connected_at, maps:get(connected_at, ConnInfo)}],
     send_http_request(Params),
     ok;
 
@@ -130,22 +136,21 @@ on_client_connected(#{}, _ConnInfo, _Env) ->
 %% Client disconnected
 %%--------------------------------------------------------------------
 
-on_client_disconnected(#{}, auth_failure, _ConnInfo, _Env) ->
-    ok;
-on_client_disconnected(Client, {shutdown, Reason}, ConnInfo, Env) when is_atom(Reason) ->
-    on_client_disconnected(Client, Reason, ConnInfo, Env);
-on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _ConnInfo, _Env)
-    when is_atom(Reason) ->
+on_client_disconnected(ClientInfo, {shutdown, Reason}, ConnInfo, Env) when is_atom(Reason) ->
+    on_client_disconnected(ClientInfo, Reason, ConnInfo, Env);
+on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _ConnInfo, _Env) ->
     emqx_metrics:inc('web_hook.client_disconnected'),
     Params = [{action, client_disconnected},
               {clientid, ClientId},
               {username, Username},
-              {reason, Reason}],
+              {reason, printable(Reason)}],
     send_http_request(Params),
-    ok;
-on_client_disconnected(_, Reason, _ConnInfo, _Env) ->
-    ?LOG(error, "Client disconnected, cannot encode reason: ~p", [Reason]),
     ok.
+
+printable(Term) when is_atom(Term); is_binary(Term) ->
+    Term;
+printable(Term) when is_tuple(Term) ->
+    iolist_to_binary(io_lib:format("~p", [Term])).
 
 %%--------------------------------------------------------------------
 %% Client subscribe
@@ -187,12 +192,13 @@ on_client_unsubscribe(#{clientid := ClientId, username := Username}, _Properties
 %% Session subscribed
 %%--------------------------------------------------------------------
 
-on_session_subscribed(#{clientid := ClientId}, Topic, Opts, {Filter}) ->
+on_session_subscribed(#{clientid := ClientId, username := Username}, Topic, Opts, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.session_subscribed'),
         Params = [{action, session_subscribed},
                   {clientid, ClientId},
+                  {username, Username},
                   {topic, Topic},
                   {opts, Opts}],
         send_http_request(Params)
@@ -202,12 +208,13 @@ on_session_subscribed(#{clientid := ClientId}, Topic, Opts, {Filter}) ->
 %% Session unsubscribed
 %%--------------------------------------------------------------------
 
-on_session_unsubscribed(#{clientid := ClientId}, Topic, _Opts, {Filter}) ->
+on_session_unsubscribed(#{clientid := ClientId, username := Username}, Topic, _Opts, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.session_unsubscribed'),
         Params = [{action, session_unsubscribed},
                   {clientid, ClientId},
+                  {username, Username},
                   {topic, Topic}],
         send_http_request(Params)
       end, Topic, Filter).
@@ -218,10 +225,11 @@ on_session_unsubscribed(#{clientid := ClientId}, Topic, _Opts, {Filter}) ->
 
 on_session_terminated(Info, {shutdown, Reason}, SessInfo, Env) when is_atom(Reason) ->
     on_session_terminated(Info, Reason, SessInfo, Env);
-on_session_terminated(#{clientid := ClientId}, Reason, _SessInfo, _Env) when is_atom(Reason) ->
+on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _SessInfo, _Env) when is_atom(Reason) ->
     emqx_metrics:inc('web_hook.session_terminated'),
     Params = [{action, session_terminated},
               {clientid, ClientId},
+              {username, Username},
               {reason, Reason}],
     send_http_request(Params),
     ok;
@@ -361,34 +369,34 @@ a2b(A) -> A.
 
 load_(Hook, Fun, Params) ->
     case Hook of
-        'client.connect'      -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'client.connack'      -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'client.connected'    -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'client.disconnected' -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
-        'client.subscribe'    -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
-        'client.unsubscribe'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
-        'session.subscribed'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
-        'session.unsubscribed'-> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
-        'session.terminated'  -> emqx:hook(Hook, fun ?MODULE:Fun/4, [Params]);
-        'message.publish'     -> emqx:hook(Hook, fun ?MODULE:Fun/2, [Params]);
-        'message.acked'       -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params]);
-        'message.delivered'   -> emqx:hook(Hook, fun ?MODULE:Fun/3, [Params])
+        'client.connect'      -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'client.connack'      -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'client.connected'    -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'client.disconnected' -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'client.subscribe'    -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'client.unsubscribe'  -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'session.subscribed'  -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'session.unsubscribed'-> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'session.terminated'  -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'message.publish'     -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'message.acked'       -> emqx:hook(Hook, {?MODULE, Fun, [Params]});
+        'message.delivered'   -> emqx:hook(Hook, {?MODULE, Fun, [Params]})
     end.
 
 unload_(Hook, Fun) ->
     case Hook of
-        'client.connect'      -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'client.connack'      -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'client.connected'    -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'client.disconnected' -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
-        'client.subscribe'    -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
-        'client.unsubscribe'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
-        'session.subscribed'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
-        'session.unsubscribed'-> emqx:unhook(Hook, fun ?MODULE:Fun/4);
-        'session.terminated'  -> emqx:unhook(Hook, fun ?MODULE:Fun/4);
-        'message.publish'     -> emqx:unhook(Hook, fun ?MODULE:Fun/2);
-        'message.acked'       -> emqx:unhook(Hook, fun ?MODULE:Fun/3);
-        'message.delivered'   -> emqx:unhook(Hook, fun ?MODULE:Fun/3)
+        'client.connect'      -> emqx:unhook(Hook, {?MODULE, Fun});
+        'client.connack'      -> emqx:unhook(Hook, {?MODULE, Fun});
+        'client.connected'    -> emqx:unhook(Hook, {?MODULE, Fun});
+        'client.disconnected' -> emqx:unhook(Hook, {?MODULE, Fun});
+        'client.subscribe'    -> emqx:unhook(Hook, {?MODULE, Fun});
+        'client.unsubscribe'  -> emqx:unhook(Hook, {?MODULE, Fun});
+        'session.subscribed'  -> emqx:unhook(Hook, {?MODULE, Fun});
+        'session.unsubscribed'-> emqx:unhook(Hook, {?MODULE, Fun});
+        'session.terminated'  -> emqx:unhook(Hook, {?MODULE, Fun});
+        'message.publish'     -> emqx:unhook(Hook, {?MODULE, Fun});
+        'message.acked'       -> emqx:unhook(Hook, {?MODULE, Fun});
+        'message.delivered'   -> emqx:unhook(Hook, {?MODULE, Fun})
     end.
 
 ntoa({0,0,0,0,0,16#ffff,AB,CD}) ->
