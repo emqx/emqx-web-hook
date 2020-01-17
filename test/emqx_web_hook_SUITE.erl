@@ -26,6 +26,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(HOOK_LOOKUP(H), emqx_hooks:lookup(list_to_atom(H))).
+-define(ACTION(Name), #{<<"action">> := Name}).
 
 all() ->
     [{group, emqx_web_hook_actions},
@@ -64,20 +65,20 @@ change_config(_Config) ->
 
 validate_web_hook(_Config) ->
     http_server:start_http(),
-    {ok, C} = emqtt:start_link([{host, "localhost"}, {clientid, <<"simpleClient">>}, {username, <<"username">>}]),
+    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
+                               , {username, <<"username">>}
+                               , {proto_ver, v5}
+                               , {keepalive, 60}
+                               ]),
     {ok, _} = emqtt:connect(C),
     emqtt:subscribe(C, <<"TopicA">>, qos2),
     emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
     ValidateData = get_http_message(),
-    ?assertEqual(length(ValidateData), 9),
-    [validate_http_data(A) || A <- ValidateData],
-    http_server:stop_http(),
-    ok.
-
-hooks_(HookName) ->
-    string:join(lists:append(["on"], string:tokens(HookName, ".")), "_").
+    ?assertEqual(length(ValidateData), 11),
+    [validate_hook_resp(A) || A <- ValidateData],
+    http_server:stop_http().
 
 get_http_message() ->
     get_http_message([]).
@@ -87,67 +88,64 @@ get_http_message(Acc) ->
         Info -> get_http_message([Info | Acc])
     after
         300 ->
-            [maps:from_list(jsx:decode(Info)) || [{Info, _}] <- Acc]
+            lists:reverse([jsx:decode(Info, [return_maps]) || [{Info, _}] <- Acc])
     end.
+validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
+    ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
+    ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
+    ?assertEqual(<<"127.0.0.1">>, maps:get(<<"ipaddress">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"client_connack">>)) ->
+    ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
+    ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
+    ?assertEqual(<<"success">>, maps:get(<<"conn_ack">>, Body)),
+    ?assertEqual(<<"127.0.0.1">>, maps:get(<<"ipaddress">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"client_connected">>)) ->
+    _ = maps:get(<<"connected_at">>, Body),
+    ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
+    ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
+    ?assertEqual(<<"127.0.0.1">>, maps:get(<<"ipaddress">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"client_disconnected">>)) ->
+    ?assertEqual(<<"normal">>, maps:get(<<"reason">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"client_subscribe">>)) ->
+    _ = maps:get(<<"opts">>, Body),
+    ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"client_unsubscribe">>)) ->
+    _ = maps:get(<<"opts">>, Body),
+    ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"session_subscribed">>)) ->
+    _ = maps:get(<<"opts">>, Body),
+    ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"session_unsubscribed">>)) ->
+    ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"session_terminated">>)) ->
+    ?assertEqual(<<"normal">>, maps:get(<<"reason">>, Body)),
+    assert_username_clientid(Body);
+validate_hook_resp(Body = ?ACTION(<<"message_publish">>)) ->
+    assert_messages_attrs(Body);
+validate_hook_resp(Body = ?ACTION(<<"message_delivered">>)) ->
+    assert_messages_attrs(Body);
+validate_hook_resp(Body = ?ACTION(<<"message_acked">>)) ->
+    assert_messages_attrs(Body).
 
-validate_http_data(#{<<"action">> := <<"client_connected">>,<<"clientid">> := ClientId, <<"username">> := Username}) ->
+assert_username_clientid(#{<<"clientid">> := ClientId, <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"client_disconnected">>, <<"clientid">> := ClientId,
-                <<"username">> := Username}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"client_subscribe">>,<<"clientid">> := ClientId, <<"topic">> := Topic,
-                     <<"username">> := Username}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username),
-    ?assertEqual(<<"TopicA">>, Topic);
-validate_http_data(#{<<"action">> := <<"client_unsubscribe">>, <<"clientid">> := ClientId,
-                     <<"topic">> := Topic,<<"username">> := Username}) ->
-    ?assertEqual(<<"TopicA">>, Topic),
-    ?assertEqual(<<"username">>, Username),
-    ?assertEqual(<<"simpleClient">>, ClientId);
-validate_http_data(#{<<"action">> := <<"session_created">>,<<"clientid">> := ClientId, <<"username">> := Username}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username);
-validate_http_data(#{<<"action">> := <<"session_subscribed">>, <<"clientid">> := ClientId, <<"topic">> := Topic}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"TopicA">>, Topic);
-validate_http_data(#{<<"action">> := <<"session_unsubscribed">>,
-                    <<"clientid">> := ClientId, <<"topic">> := Topic}) ->
-    ?assertEqual(<<"TopicA">>, Topic),
-    ?assertEqual(<<"simpleClient">>, ClientId);
-validate_http_data(#{<<"action">> := <<"session_terminated">>,<<"clientid">> := ClientId}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId);
-validate_http_data(#{<<"action">> := <<"message_publish">>, <<"from_client_id">> := ClientId,
-                     <<"from_username">> := Username, <<"payload">> := Payload,<<"qos">> := Qos,
-                     <<"retain">> := Retain, <<"topic">> := Topic}) ->
-    ?assertEqual(<<"Payload...">>, Payload),
-    ?assertEqual(2, Qos),
-    ?assertEqual(false, Retain),
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username),
-    ?assertEqual(<<"TopicA">>, Topic);
-validate_http_data(#{<<"action">> := <<"message_delivered">>, <<"clientid">> := ClientId,
-                     <<"from_client_id">> := FromClientId,<<"from_username">> := FromUsername,
-                     <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := Retain,<<"topic">> := Topic,
-                     <<"username">> := Username})->
-    ?assertEqual(<<"Payload...">>, Payload),
-    ?assertEqual(2, Qos),
-    ?assertEqual(false, Retain),
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username),
-    ?assertEqual(<<"TopicA">>, Topic),
-    ?assertEqual(<<"simpleClient">>, FromClientId),
-    ?assertEqual(<<"username">>, FromUsername);
-validate_http_data(#{<<"action">> := <<"message_acked">>, <<"clientid">> := ClientId,
-                    <<"from_client_id">> := FromClietId, <<"from_username">> := FromUsername,
-                    <<"payload">> := Payload,<<"qos">> := Qos,<<"retain">> := false,<<"topic">> := TopicA}) ->
-    ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"simpleClient">>, FromClietId),
-    ?assertEqual(<<"username">>, FromUsername),
-    ?assertEqual(<<"Payload...">>, Payload),
-    ?assertEqual(2, Qos),
-    ?assertEqual(<<"TopicA">>, TopicA);
-validate_http_data(_ValidateData) ->
-    ct:fail("fail").
+    ?assertEqual(<<"username">>, Username).
+
+assert_messages_attrs(#{ <<"ts">> := _
+                       , <<"qos">> := _
+                       , <<"topic">> := _
+                       , <<"retain">> := _
+                       , <<"payload">> := _
+                       , <<"from_username">> := _
+                       , <<"from_client_id">> := _
+                       }) ->
+    ok.
+
