@@ -308,7 +308,7 @@ on_message_acked(#{clientid := ClientId}, Message = #message{topic = Topic, flag
 %%--------------------------------------------------------------------
 
 send_http_request(Params) ->
-    Params1 = jsx:encode(Params),
+    Params1 = emqx_json:encode(Params),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
     ?LOG(debug, "Url:~p, params:~s", [Url, Params1]),
     case request_(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], [], 0) of
@@ -331,7 +331,7 @@ parse_rule(Rules) ->
 parse_rule([], Acc) ->
     lists:reverse(Acc);
 parse_rule([{Rule, Conf} | Rules], Acc) ->
-    Params = jsx:decode(iolist_to_binary(Conf)),
+    Params = emqx_json:decode(iolist_to_binary(Conf)),
     Action = proplists:get_value(<<"action">>, Params),
     Filter = proplists:get_value(<<"topic">>, Params),
     parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).
