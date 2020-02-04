@@ -141,7 +141,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
 
 http_request(Url, Headers, Method, Params) ->
     logger:debug("[WebHook Action] ~s to ~s, headers: ~s, body: ~p", [Method, Url, Headers, Params]),
-    case do_http_request(Method, ?JSON_REQ(Url, Headers, jsx:encode(Params)),
+    case do_http_request(Method, ?JSON_REQ(Url, Headers, emqx_json:encode(Params)),
                          [{timeout, 5000}], [], 0) of
         {ok, _} -> ok;
         {error, Reason} ->
