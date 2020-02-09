@@ -17,7 +17,7 @@ MATCH_BRANCH = fun (BranchName) when BranchName =:= "master";
                        BranchName;
                    (BranchName) ->
                        case string:prefix(BranchName, "release") of
-                           nomatch -> "develop";
+                           nomatch -> "develop-5";
                            _Match -> BranchName
                        end
                end,
