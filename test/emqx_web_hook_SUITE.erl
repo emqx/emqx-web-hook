@@ -88,7 +88,7 @@ get_http_message(Acc) ->
         Info -> get_http_message([Info | Acc])
     after
         300 ->
-            lists:reverse([jsx:decode(Info, [return_maps]) || [{Info, _}] <- Acc])
+            lists:reverse([emqx_json:decode(Info, [return_maps]) || [{Info, _}] <- Acc])
     end.
 validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
     ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
