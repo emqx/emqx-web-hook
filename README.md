@@ -31,7 +31,7 @@ API
 ```json
 {
     "action":"client_connected",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "keepalive": 60,
     "ipaddress": "127.0.0.1",
@@ -45,7 +45,7 @@ API
 ```json
 {
     "action":"client_disconnected",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "reason":"normal"
 }
@@ -55,7 +55,7 @@ API
 ```json
 {
     "action":"client_subscribe",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world",
     "opts":{
@@ -68,7 +68,7 @@ API
 ```json
 {
     "action":"client_unsubscribe",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world"
 }
@@ -78,7 +78,7 @@ API
 ```json
 {
     "action":"session_created",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117"
 }
 ```
@@ -87,7 +87,7 @@ API
 ```json
 {
     "action":"session_subscribed",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world",
     "opts":{
@@ -100,7 +100,7 @@ API
 ```json
 {
     "action":"session_unsubscribed",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "topic":"world"
 }
@@ -110,7 +110,7 @@ API
 ```json
 {
     "action":"session_terminated",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "reason":"normal"
 }
@@ -134,7 +134,7 @@ API
 ```json
 {
     "action":"message_delivered",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "from_client_id":"C_1492410235117",
     "from_username":"C_1492410235117",
@@ -150,7 +150,7 @@ API
 ```json
 {
     "action":"message_acked",
-    "client_id":"C_1492410235117",
+    "clientid":"C_1492410235117",
     "username":"C_1492410235117",
     "from_client_id":"C_1492410235117",
     "from_username":"C_1492410235117",
