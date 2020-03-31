@@ -46,6 +46,7 @@
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
+            order => 0,
             type => string,
             required => true,
             title => #{en => <<"Resource ID">>,
@@ -55,7 +56,18 @@
         }).
 
 -define(ACTION_DATA_SPEC, #{
-            '$resource' => ?ACTION_PARAM_RESOURCE
+            '$resource' => ?ACTION_PARAM_RESOURCE,
+            payload_tmpl => #{
+                order => 1,
+                type => string,
+                input => textarea,
+                required => true,
+                default => <<"">>,
+                title => #{en => <<"Payload Template">>,
+                           zh => <<"消息内容模板"/utf8>>},
+                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JOSN format">>,
+                                 zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
+            }
         }).
 
 -define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
@@ -128,12 +140,17 @@ on_resource_destroy(_ResId, _Params) ->
 %% An action that forwards publish messages to a remote web server.
 -spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
 on_action_create_data_to_webserver(_Id, Params) ->
-    #{url := Url, headers := Headers, method := Method}
+    #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl}
         = parse_action_params(Params),
+    PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     fun(Selected, _Envs) ->
-        http_request(Url, Headers, Method, Selected)
+        http_request(Url, Headers, Method, format_msg(PayloadTks, Selected))
     end.
 
+format_msg([], Selected) ->
+    emqx_json:encode(Selected);
+format_msg(Tokens, Selected) ->
+     emqx_rule_utils:proc_tmpl(Tokens, Selected).
 
 %%------------------------------------------------------------------------------
 %% Internal functions
@@ -141,7 +158,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
 
 http_request(Url, Headers, Method, Params) ->
     logger:debug("[WebHook Action] ~s to ~s, headers: ~s, body: ~p", [Method, Url, Headers, Params]),
-    case do_http_request(Method, ?JSON_REQ(Url, Headers, emqx_json:encode(Params)),
+    case do_http_request(Method, ?JSON_REQ(Url, Headers, Params),
                          [{timeout, 5000}], [], 0) of
         {ok, _} -> ok;
         {error, Reason} ->
@@ -163,7 +180,7 @@ parse_action_params(Params = #{<<"url">> := Url}) ->
         #{url => str(Url),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          template => maps:get(<<"template">>, Params, undefined)}
+          payload_tmpl => maps:get(<<"payload_tmpl">>, Params, undefined)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
