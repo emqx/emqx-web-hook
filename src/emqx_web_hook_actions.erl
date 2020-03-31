@@ -61,7 +61,7 @@
                 order => 1,
                 type => string,
                 input => textarea,
-                required => true,
+                required => false,
                 default => <<"">>,
                 title => #{en => <<"Payload Template">>,
                            zh => <<"消息内容模板"/utf8>>},
@@ -191,6 +191,7 @@ method(PUT) when PUT == <<"PUT">>; PUT == <<"put">> -> put;
 method(DEL) when DEL == <<"DELETE">>; DEL == <<"delete">> -> delete.
 
 headers(undefined) -> [];
+headers(Headers) when is_list(Headers) -> Headers;
 headers(Headers) when is_map(Headers) ->
     maps:fold(fun(K, V, Acc) ->
             [{str(K), str(V)} | Acc]
