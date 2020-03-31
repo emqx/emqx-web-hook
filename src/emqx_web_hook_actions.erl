@@ -147,10 +147,10 @@ on_action_create_data_to_webserver(_Id, Params) ->
         http_request(Url, Headers, Method, format_msg(PayloadTks, Selected))
     end.
 
-format_msg([], Selected) ->
-    emqx_json:encode(Selected);
-format_msg(Tokens, Selected) ->
-     emqx_rule_utils:proc_tmpl(Tokens, Selected).
+format_msg([], Data) ->
+    emqx_json:encode(Data);
+format_msg(Tokens, Data) ->
+     emqx_rule_utils:proc_tmpl(Tokens, Data).
 
 %%------------------------------------------------------------------------------
 %% Internal functions
