@@ -66,7 +66,6 @@ change_config(_Config) ->
 validate_web_hook(_Config) ->
     http_server:start_http(),
     {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
-                               , {username, <<"username">>}
                                , {proto_ver, v5}
                                , {keepalive, 60}
                                ]),
@@ -137,7 +136,7 @@ validate_hook_resp(Body = ?ACTION(<<"message_acked">>)) ->
 
 assert_username_clientid(#{<<"clientid">> := ClientId, <<"username">> := Username}) ->
     ?assertEqual(<<"simpleClient">>, ClientId),
-    ?assertEqual(<<"username">>, Username).
+    ?assertEqual(null, Username).
 
 assert_messages_attrs(#{ <<"ts">> := _
                        , <<"qos">> := _
