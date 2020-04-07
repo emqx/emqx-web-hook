@@ -411,11 +411,12 @@ ntoa({0,0,0,0,0,16#ffff,AB,CD}) ->
 ntoa(IP) ->
     inet_parse:ntoa(IP).
 
+stringfy(undefined) ->
+    null;
 stringfy(Term) when is_atom(Term); is_binary(Term) ->
     Term;
 stringfy(Term) ->
-    iolist_to_binary(io_lib:format("~0p", [maybe(Term)])).
+    iolist_to_binary(io_lib:format("~0p", [Term])).
 
 maybe(undefined) -> null;
 maybe(Str) -> Str.
-
