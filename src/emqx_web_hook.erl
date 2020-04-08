@@ -86,7 +86,7 @@ on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peern
     emqx_metrics:inc('web_hook.client_connect'),
     Params = #{ action => client_connect
               , clientid => ClientId
-              , username => maybe_undefined(Username)
+              , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
               , keepalive => maps:get(keepalive, ConnInfo)
               , proto_ver => maps:get(proto_ver, ConnInfo)
@@ -104,7 +104,7 @@ on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peern
     emqx_metrics:inc('web_hook.client_connack'),
     Params = #{ action => client_connack
               , clientid => ClientId
-              , username => maybe_undefined(Username)
+              , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
               , keepalive => maps:get(keepalive, ConnInfo)
               , proto_ver => maps:get(proto_ver, ConnInfo)
@@ -123,7 +123,7 @@ on_client_connected(#{clientid := ClientId, username := Username, peerhost := Pe
     emqx_metrics:inc('web_hook.client_connected'),
     Params = #{ action => client_connected
               , clientid => ClientId
-              , username => maybe_undefined(Username)
+              , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
               , keepalive => maps:get(keepalive, ConnInfo)
               , proto_ver => maps:get(proto_ver, ConnInfo)
@@ -145,16 +145,11 @@ on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _C
     emqx_metrics:inc('web_hook.client_disconnected'),
     Params = #{ action => client_disconnected
               , clientid => ClientId
-              , username => maybe_undefined(Username)
-              , reason => printable(Reason)
+              , username => maybe(Username)
+              , reason => stringfy(Reason)
               },
     send_http_request(Params),
     ok.
-
-printable(Term) when is_atom(Term); is_binary(Term) ->
-    Term;
-printable(Term) when is_tuple(Term) ->
-    iolist_to_binary(io_lib:format("~p", [Term])).
 
 %%--------------------------------------------------------------------
 %% Client subscribe
@@ -167,7 +162,7 @@ on_client_subscribe(#{clientid := ClientId, username := Username}, _Properties, 
           emqx_metrics:inc('web_hook.client_subscribe'),
           Params = #{ action => client_subscribe
                     , clientid => ClientId
-                    , username => maybe_undefined(Username)
+                    , username => maybe(Username)
                     , topic => Topic
                     , opts => Opts
                     },
@@ -186,7 +181,7 @@ on_client_unsubscribe(#{clientid := ClientId, username := Username}, _Properties
           emqx_metrics:inc('web_hook.client_unsubscribe'),
           Params = #{ action => client_unsubscribe
                     , clientid => ClientId
-                    , username => maybe_undefined(Username)
+                    , username => maybe(Username)
                     , topic => Topic
                     , opts => Opts
                     },
@@ -204,7 +199,7 @@ on_session_subscribed(#{clientid := ClientId, username := Username}, Topic, Opts
         emqx_metrics:inc('web_hook.session_subscribed'),
         Params = #{ action => session_subscribed
                   , clientid => ClientId
-                  , username => maybe_undefined(Username)
+                  , username => maybe(Username)
                   , topic => Topic
                   , opts => Opts
                   },
@@ -221,7 +216,7 @@ on_session_unsubscribed(#{clientid := ClientId, username := Username}, Topic, _O
         emqx_metrics:inc('web_hook.session_unsubscribed'),
         Params = #{ action => session_unsubscribed
                   , clientid => ClientId
-                  , username => maybe_undefined(Username)
+                  , username => maybe(Username)
                   , topic => Topic
                   },
         send_http_request(Params)
@@ -237,7 +232,7 @@ on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _Se
     emqx_metrics:inc('web_hook.session_terminated'),
     Params = #{ action => session_terminated
               , clientid => ClientId
-              , username => maybe_undefined(Username)
+              , username => maybe(Username)
               , reason => Reason
               },
     send_http_request(Params),
@@ -259,7 +254,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
         {FromClientId, FromUsername} = format_from(Message),
         Params = #{ action => message_publish
                   , from_client_id => FromClientId
-                  , from_username => maybe_undefined(FromUsername)
+                  , from_username => maybe(FromUsername)
                   , topic => Message#message.topic
                   , qos => Message#message.qos
                   , retain => Retain
@@ -283,7 +278,7 @@ on_message_delivered(#{clientid := ClientId, username := Username}, Message = #m
                 , clientid => ClientId
                 , username => Username
                 , from_client_id => FromClientId
-                , from_username => maybe_undefined(FromUsername)
+                , from_username => maybe(FromUsername)
                 , topic => Message#message.topic
                 , qos => Message#message.qos
                 , retain => Retain
@@ -305,7 +300,7 @@ on_message_acked(#{clientid := ClientId}, Message = #message{topic = Topic, flag
         Params = #{ action => message_acked
                   , clientid => ClientId
                   , from_client_id => FromClientId
-                  , from_username => maybe_undefined(FromUsername)
+                  , from_username => maybe(FromUsername)
                   , topic => Message#message.topic
                   , qos => Message#message.qos
                   , retain => Retain
@@ -416,5 +411,12 @@ ntoa({0,0,0,0,0,16#ffff,AB,CD}) ->
 ntoa(IP) ->
     inet_parse:ntoa(IP).
 
-maybe_undefined(undefined) -> null;
-maybe_undefined(Str) -> Str.
+stringfy(undefined) ->
+    null;
+stringfy(Term) when is_atom(Term); is_binary(Term) ->
+    Term;
+stringfy(Term) ->
+    iolist_to_binary(io_lib:format("~0p", [Term])).
+
+maybe(undefined) -> null;
+maybe(Str) -> Str.
