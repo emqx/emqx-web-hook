@@ -151,13 +151,6 @@ on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _C
     send_http_request(Params),
     ok.
 
-printable(Term) when is_atom(Term); is_binary(Term) ->
-    Term;
-printable(Term) when is_tuple(Term) ->
-    iolist_to_binary(io_lib:format("~p", [Term]));
-printable(_) ->
-    nil .
-
 %%--------------------------------------------------------------------
 %% Client subscribe
 %%--------------------------------------------------------------------
