@@ -157,7 +157,7 @@ format_msg(Tokens, Data) ->
 %%------------------------------------------------------------------------------
 
 http_request(Url, Headers, Method, Params) ->
-    logger:debug("[WebHook Action] ~s to ~s, headers: ~s, body: ~p", [Method, Url, Headers, Params]),
+    logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
     case do_http_request(Method, ?JSON_REQ(Url, Headers, Params),
                          [{timeout, 5000}], [], 0) of
         {ok, _} -> ok;
