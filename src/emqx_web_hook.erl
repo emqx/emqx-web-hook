@@ -251,10 +251,10 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.message_publish'),
-        {FromClientId, FromUsername} = format_from(Message),
+        {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_publish
                   , from_client_id => FromClientId
-                  , from_username => maybe(FromUsername)
+                  , from_username => FromUsername
                   , topic => Message#message.topic
                   , qos => Message#message.qos
                   , retain => Retain
@@ -273,12 +273,12 @@ on_message_delivered(#{clientid := ClientId, username := Username}, Message = #m
   with_filter(
     fun() ->
       emqx_metrics:inc('web_hook.message_delivered'),
-      {FromClientId, FromUsername} = format_from(Message),
+      {FromClientId, FromUsername} = parse_from(Message),
       Params = #{ action => message_delivered
                 , clientid => ClientId
-                , username => Username
+                , username => maybe(Username)
                 , from_client_id => FromClientId
-                , from_username => maybe(FromUsername)
+                , from_username => FromUsername
                 , topic => Message#message.topic
                 , qos => Message#message.qos
                 , retain => Retain
@@ -296,11 +296,11 @@ on_message_acked(#{clientid := ClientId}, Message = #message{topic = Topic, flag
     with_filter(
       fun() ->
         emqx_metrics:inc('web_hook.message_acked'),
-        {FromClientId, FromUsername} = format_from(Message),
+        {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_acked
                   , clientid => ClientId
                   , from_client_id => FromClientId
-                  , from_username => maybe(FromUsername)
+                  , from_username => FromUsername
                   , topic => Message#message.topic
                   , qos => Message#message.qos
                   , retain => Retain
@@ -359,10 +359,10 @@ with_filter(Fun, Msg, Topic, Filter) ->
         false -> {ok, Msg}
     end.
 
-format_from(#message{from = ClientId, headers = #{username := Username}}) ->
-    {a2b(ClientId), a2b(Username)};
-format_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
-    {a2b(ClientId), <<"undefined">>}.
+parse_from(#message{from = ClientId, headers = #{username := Username}}) ->
+    {ClientId, maybe(Username)};
+parse_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
+    {ClientId, maybe(undefined)}.
 
 encode_payload(Payload) ->
     encode_payload(Payload, application:get_env(?APP, encode_payload, undefined)).
@@ -370,9 +370,6 @@ encode_payload(Payload) ->
 encode_payload(Payload, base62) -> emqx_base62:encode(Payload);
 encode_payload(Payload, base64) -> base64:encode(Payload);
 encode_payload(Payload, _) -> Payload.
-
-a2b(A) when is_atom(A) -> erlang:atom_to_binary(A, utf8);
-a2b(A) -> A.
 
 load_(Hook, Fun, Params) ->
     case Hook of
