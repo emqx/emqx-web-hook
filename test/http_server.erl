@@ -1,12 +1,18 @@
+%%--------------------------------------------------------------------
+%% A Simple HTTP Server based cowboy
+%%
+%% It will deliver the http-request params to initialer process
+%%--------------------------------------------------------------------
 -module(http_server).
 
--compile([nowarn_export_all]).
 -compile(export_all).
+-compile(nowarn_export_all).
 
-%%%%%%%start http listen%%%%%%%%%%%%%%%%%%%%%
+%%--------------------------------------------------------------------
+%% APIs
+%%--------------------------------------------------------------------
+
 start_http() ->
-    %process_flag(trap_exit, true),
-    io:format("start http~n", []),
     {ok, _} = application:ensure_all_started(cowboy),
     Dispatch = cowboy_router:compile([
         {'_', [
@@ -15,16 +21,22 @@ start_http() ->
     ]),
     {ok, _Pid} = cowboy:start_clear(http, [{port, 8080}], #{
         env => #{dispatch => Dispatch}
-    }).
+    }),
+    io:format("Start http server on 8080 successfully!~n").
 
 stop_http() ->
-    cowboy:stop_listener(http).
+    ok = cowboy:stop_listener(http),
+    io:format("Stopped http server on 8080").
+
+%%--------------------------------------------------------------------
+%% Callbacks
+%%--------------------------------------------------------------------
 
 init(Req, ReceiverPid) ->
-    io:format("init Req: ~p~n", [Req]),
     Req1 = handle_request(Req, ReceiverPid),
     {ok, Req1, ReceiverPid}.
 
+%% @private
 handle_request(Req, ReceiverPid) ->
     Method =cowboy_req:method(Req),
     Params =
@@ -34,10 +46,10 @@ handle_request(Req, ReceiverPid) ->
                 {ok, PostVals, _Req2} = cowboy_req:read_urlencoded_body(Req),
                 PostVals
         end,
-    io:format("Method: ~p, Param: ~p", [Method, Params]),
     erlang:send(ReceiverPid, Params),
     reply(Req, ok).
 
+%% @private
 reply(Req, ok) ->
     cowboy_req:reply(200, #{<<"content-type">> => <<"text/plain">>}, <<"hello">>, Req);
 reply(Req, error) ->

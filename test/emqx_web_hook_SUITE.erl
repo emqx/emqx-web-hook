@@ -16,43 +16,45 @@
 
 -module(emqx_web_hook_SUITE).
 
--compile([nowarn_export_all]).
 -compile(export_all).
+-compile(nowarn_export_all).
 
 -include_lib("emqx/include/emqx.hrl").
-
--include_lib("common_test/include/ct.hrl").
-
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("common_test/include/ct.hrl").
 
 -define(HOOK_LOOKUP(H), emqx_hooks:lookup(list_to_atom(H))).
 -define(ACTION(Name), #{<<"action">> := Name}).
 
-all() ->
-    [{group, emqx_web_hook_actions},
-     {group, emqx_web_hook}].
+%%--------------------------------------------------------------------
+%% Setups
+%%--------------------------------------------------------------------
 
-groups() ->
-    [{emqx_web_hook, [sequence], [reload, change_config]},
-     {emqx_web_hook_actions, [sequence], [validate_web_hook]}
-    ].
+all() ->
+    emqx_ct:all(?MODULE).
 
 init_per_suite(Config) ->
-    ok = ekka_mnesia:start(),
-    emqx_ct_helpers:start_apps([emqx, emqx_web_hook]),
+    emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_cfgs/1),
     Config.
 
-end_per_suite(_Config) ->
-    emqx_ct_helpers:stop_apps([emqx_web_hook, emqx]).
+end_per_suite(_) ->
+    emqx_ct_helpers:stop_apps([emqx_web_hook]).
 
-reload(_Config) ->
+set_special_cfgs(_) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% Test cases
+%%--------------------------------------------------------------------
+
+t_check_hooked(_) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     lists:foreach(fun({HookName, _Action}) ->
-                          Hooks  = ?HOOK_LOOKUP(HookName),
+                          Hooks = ?HOOK_LOOKUP(HookName),
                           ?assertEqual(true, length(Hooks) > 0)
                   end, Rules).
 
-change_config(_Config) ->
+t_change_config(_) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     emqx_web_hook:unload(),
     HookRules = lists:keydelete("message.delivered", 1, Rules),
@@ -63,7 +65,7 @@ change_config(_Config) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-validate_web_hook(_Config) ->
+t_validate_web_hook(_) ->
     http_server:start_http(),
     {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
                                , {proto_ver, v5}
@@ -79,6 +81,10 @@ validate_web_hook(_Config) ->
     [validate_hook_resp(A) || A <- ValidateData],
     http_server:stop_http().
 
+%%--------------------------------------------------------------------
+%% Utils
+%%--------------------------------------------------------------------
+
 get_http_message() ->
     get_http_message([]).
 
@@ -89,6 +95,7 @@ get_http_message(Acc) ->
         300 ->
             lists:reverse([emqx_json:decode(Info, [return_maps]) || [{Info, _}] <- Acc])
     end.
+
 validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
     ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
     ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
@@ -147,4 +154,3 @@ assert_messages_attrs(#{ <<"ts">> := _
                        , <<"from_client_id">> := _
                        }) ->
     ok.
-
