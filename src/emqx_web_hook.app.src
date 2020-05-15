@@ -1,5 +1,5 @@
 {application, emqx_web_hook,
- [{description, "EMQ X Webhook Plugin"},
+ [{description, "EMQ X WebHook Plugin"},
   {vsn, "git"},
   {modules, []},
   {registered, [emqx_web_hook_sup]},
