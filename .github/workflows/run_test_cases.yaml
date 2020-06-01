@@ -16,6 +16,7 @@ jobs:
                 make xref
                 make eunit  
                 make ct
+                make proper
                 make cover
             - uses: actions/upload-artifact@v1
               if: always()

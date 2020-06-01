@@ -18,6 +18,9 @@ eunit: compile
 xref:
 	$(REBAR) xref
 
+proper:
+	$(REBAR) proper -d test/props
+
 cover:
 	$(REBAR) cover
 

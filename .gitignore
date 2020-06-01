@@ -28,3 +28,4 @@ rebar.lock
 erlang.mk
 rebar3.crashdump
 etc/emqx_web_hook.conf.rendered
+Mnesia.nonode@nohost
