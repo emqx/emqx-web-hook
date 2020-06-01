@@ -23,6 +23,8 @@
 
 -logger_header("[WebHook]").
 
+-import(inet, [ntoa/1]).
+
 %% APIs
 -export([ register_metrics/0
         , load/0
@@ -91,11 +93,7 @@ on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peern
               , keepalive => maps:get(keepalive, ConnInfo)
               , proto_ver => maps:get(proto_ver, ConnInfo)
               },
-    send_http_request(Params),
-    ok;
-on_client_connect(ConnInfo, _ConnProp, _Env) ->
-    ?LOG(error, "client.connect can't identify the conninfo: ~0p", [ConnInfo]),
-    ok.
+    send_http_request(Params).
 
 %%--------------------------------------------------------------------
 %% Client connack
@@ -111,11 +109,7 @@ on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peern
               , proto_ver => maps:get(proto_ver, ConnInfo)
               , conn_ack => Rc
               },
-    send_http_request(Params),
-    ok;
-on_client_connack(ConnInfo, _Rc, _AckProp, _Env) ->
-    ?LOG(error, "client.connack can't identify the conninfo: ~0p", [ConnInfo]),
-    ok.
+    send_http_request(Params).
 
 %%--------------------------------------------------------------------
 %% Client connected
@@ -131,8 +125,7 @@ on_client_connected(#{clientid := ClientId, username := Username, peerhost := Pe
               , proto_ver => maps:get(proto_ver, ConnInfo)
               , connected_at => maps:get(connected_at, ConnInfo)
               },
-    send_http_request(Params),
-    ok.
+    send_http_request(Params).
 
 %%--------------------------------------------------------------------
 %% Client disconnected
@@ -147,8 +140,7 @@ on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _C
               , username => maybe(Username)
               , reason => stringfy(maybe(Reason))
               },
-    send_http_request(Params),
-    ok.
+    send_http_request(Params).
 
 %%--------------------------------------------------------------------
 %% Client subscribe
@@ -234,8 +226,7 @@ on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _Se
               , username => maybe(Username)
               , reason => stringfy(maybe(Reason))
               },
-    send_http_request(Params),
-    ok.
+    send_http_request(Params).
 
 %%--------------------------------------------------------------------
 %% Message publish
@@ -243,7 +234,7 @@ on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _Se
 
 on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
-on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_publish(Message = #message{topic = Topic}, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('webhook.message_publish'),
@@ -253,7 +244,7 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
                   , from_username => FromUsername
                   , topic => Message#message.topic
                   , qos => Message#message.qos
-                  , retain => Retain
+                  , retain => emqx_message:get_flag(retain, Message)
                   , payload => encode_payload(Message#message.payload)
                   , ts => Message#message.timestamp
                   },
@@ -265,7 +256,10 @@ on_message_publish(Message = #message{topic = Topic, flags = #{retain := Retain}
 %% Message deliver
 %%--------------------------------------------------------------------
 
-on_message_delivered(#{clientid := ClientId, username := Username}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_delivered(_ClientInfo,#message{topic = <<"$SYS/", _/binary>>}, _Env) ->
+    ok;
+on_message_delivered(#{clientid := ClientId, username := Username},
+                     Message = #message{topic = Topic}, {Filter}) ->
   with_filter(
     fun() ->
       emqx_metrics:inc('webhook.message_delivered'),
@@ -277,7 +271,7 @@ on_message_delivered(#{clientid := ClientId, username := Username}, Message = #m
                 , from_username => FromUsername
                 , topic => Message#message.topic
                 , qos => Message#message.qos
-                , retain => Retain
+                , retain => emqx_message:get_flag(retain, Message)
                 , payload => encode_payload(Message#message.payload)
                 , ts => Message#message.timestamp
                 },
@@ -288,18 +282,22 @@ on_message_delivered(#{clientid := ClientId, username := Username}, Message = #m
 %% Message acked
 %%--------------------------------------------------------------------
 
-on_message_acked(#{clientid := ClientId}, Message = #message{topic = Topic, flags = #{retain := Retain}}, {Filter}) ->
+on_message_acked(_ClientInfo, #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
+    ok;
+on_message_acked(#{clientid := ClientId, username := Username},
+                 Message = #message{topic = Topic}, {Filter}) ->
     with_filter(
       fun() ->
         emqx_metrics:inc('webhook.message_acked'),
         {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_acked
                   , clientid => ClientId
+                  , username => maybe(Username)
                   , from_client_id => FromClientId
                   , from_username => FromUsername
                   , topic => Message#message.topic
                   , qos => Message#message.qos
-                  , retain => Retain
+                  , retain => emqx_message:get_flag(retain, Message)
                   , payload => encode_payload(Message#message.payload)
                   , ts => Message#message.timestamp
                   },
@@ -355,10 +353,8 @@ with_filter(Fun, Msg, Topic, Filter) ->
         false -> {ok, Msg}
     end.
 
-parse_from(#message{from = ClientId, headers = #{username := Username}}) ->
-    {ClientId, maybe(Username)};
-parse_from(#message{from = ClientId, headers = _HeadersNoUsername}) ->
-    {ClientId, maybe(undefined)}.
+parse_from(Message) ->
+    {emqx_message:from(Message), maybe(emqx_message:get_header(username, Message))}.
 
 encode_payload(Payload) ->
     encode_payload(Payload, application:get_env(?APP, encode_payload, undefined)).
@@ -367,17 +363,11 @@ encode_payload(Payload, base62) -> emqx_base62:encode(Payload);
 encode_payload(Payload, base64) -> base64:encode(Payload);
 encode_payload(Payload, _) -> Payload.
 
-ntoa({0,0,0,0,0,16#ffff,AB,CD}) ->
-    inet_parse:ntoa({AB bsr 8, AB rem 256, CD bsr 8, CD rem 256});
-ntoa(IP) ->
-    inet_parse:ntoa(IP).
-
-stringfy(undefined) ->
-    null;
 stringfy(Term) when is_atom(Term); is_binary(Term) ->
     Term;
 stringfy(Term) ->
-    iolist_to_binary(io_lib:format("~0p", [Term])).
+    unicode:characters_to_binary((io_lib:format("~0p", [Term]))).
 
 maybe(undefined) -> null;
 maybe(Str) -> Str.
+
