@@ -52,18 +52,19 @@
 %%--------------------------------------------------------------------
 
 register_metrics() ->
-    lists:foreach(fun emqx_metrics:new/1, ['webhook.client_connect',
-                                           'webhook.client_connack',
-                                           'webhook.client_connected',
-                                           'webhook.client_disconnected',
-                                           'webhook.client_subscribe',
-                                           'webhook.client_unsubscribe',
-                                           'webhook.session_subscribed',
-                                           'webhook.session_unsubscribed',
-                                           'webhook.session_terminated',
-                                           'webhook.message_publish',
-                                           'webhook.message_delivered',
-                                           'webhook.message_acked']).
+    lists:foreach(fun emqx_metrics:ensure/1,
+                  ['webhook.client_connect',
+                   'webhook.client_connack',
+                   'webhook.client_connected',
+                   'webhook.client_disconnected',
+                   'webhook.client_subscribe',
+                   'webhook.client_unsubscribe',
+                   'webhook.session_subscribed',
+                   'webhook.session_unsubscribed',
+                   'webhook.session_terminated',
+                   'webhook.message_publish',
+                   'webhook.message_delivered',
+                   'webhook.message_acked']).
 
 load() ->
     lists:foreach(
@@ -144,7 +145,7 @@ on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _C
     Params = #{ action => client_disconnected
               , clientid => ClientId
               , username => maybe(Username)
-              , reason => stringfy(Reason)
+              , reason => stringfy(maybe(Reason))
               },
     send_http_request(Params),
     ok.
@@ -226,17 +227,14 @@ on_session_unsubscribed(#{clientid := ClientId, username := Username}, Topic, _O
 
 on_session_terminated(Info, {shutdown, Reason}, SessInfo, Env) when is_atom(Reason) ->
     on_session_terminated(Info, Reason, SessInfo, Env);
-on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _SessInfo, _Env) when is_atom(Reason) ->
+on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _SessInfo, _Env) ->
     emqx_metrics:inc('webhook.session_terminated'),
     Params = #{ action => session_terminated
               , clientid => ClientId
               , username => maybe(Username)
-              , reason => Reason
+              , reason => stringfy(maybe(Reason))
               },
     send_http_request(Params),
-    ok;
-on_session_terminated(#{}, Reason, _SessInfo, _Env) ->
-    ?LOG(error, "session.terminated can't encode the reason: ~p", [Reason]),
     ok.
 
 %%--------------------------------------------------------------------
