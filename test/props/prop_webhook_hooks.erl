@@ -277,6 +277,48 @@ prop_message_acked() ->
             true
         end).
 
+prop_try_again() ->
+    Setup = fun() ->
+                logger:set_module_level(emqx_web_hook, emergency),
+                meck:new(httpc, [passthrough, no_history]),
+                meck:expect(httpc, request,
+                    fun(Method, {Url, [], ContentType, Body}, _HttpOpts, _Opt) ->
+                        self() ! {Method, Url, ContentType, Body}, {error, get(code)}
+                    end),
+                meck:new(emqx_metrics, [passthrough, no_history]),
+                meck:expect(emqx_metrics, inc, fun(_) -> ok end)
+            end,
+    Teardown = fun() ->
+                   meck:unload(httpc),
+                   meck:unload(emqx_metrics),
+                   logger:set_module_level(emqx_web_hook, debug)
+               end,
+    ?SETUP(fun() -> Setup(), Teardown end,
+        ?FORALL({ConnInfo, ConnProps, Env, Code},
+                {conninfo(), conn_properties(), empty_env(), http_code()},
+                begin
+                    %% pre-set error code
+                    put(code, Code),
+                    %% run hook
+                    ok = emqx_web_hook:on_client_connect(ConnInfo, ConnProps, Env),
+
+                    Bodys = receive_http_request_bodys(),
+                    Body = emqx_json:encode(
+                             #{action => client_connect,
+                               clientid => maps:get(clientid, ConnInfo),
+                               username => maybe(maps:get(username, ConnInfo)),
+                               ipaddress => peer2addr(maps:get(peername, ConnInfo)),
+                               keepalive => maps:get(keepalive, ConnInfo),
+                               proto_ver => maps:get(proto_ver, ConnInfo)
+                              }),
+                    [ B = Body || B <- Bodys],
+                    if Code == socket_closed_remotely ->
+                           4 = length(Bodys);
+                       true -> ok
+                    end,
+                    true
+                end)).
+
 %%--------------------------------------------------------------------
 %% Helper
 %%--------------------------------------------------------------------
@@ -320,6 +362,17 @@ receive_http_request_body() ->
             Body
     after 100 ->
         exit(waiting_message_timeout)
+    end.
+
+receive_http_request_bodys() ->
+    receive_http_request_bodys_([]).
+
+receive_http_request_bodys_(Acc) ->
+    receive
+        {post, "http://127.0.0.1", "application/json", Body} ->
+           receive_http_request_bodys_([Body|Acc])
+    after 1000 ->
+          lists:reverse(Acc)
     end.
 
 filter_topictab(TopicTab, {undefined}) ->
@@ -366,3 +419,6 @@ topic_filter_env() ->
 
 payload_encode() ->
     oneof([base62, base64, undefined]).
+
+http_code() ->
+    oneof([socket_closed_remotely, others]).
