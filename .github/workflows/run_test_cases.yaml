@@ -11,9 +11,12 @@ jobs:
             
         steps:
             - uses: actions/checkout@v1
-            - name: run test cases
+            - name: code dialyzer
               run: |
                 make xref
+                make dialyzer
+            - name: run test cases
+              run: |
                 make eunit  
                 make ct
                 make proper
