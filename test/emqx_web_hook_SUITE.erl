@@ -40,6 +40,20 @@ init_per_suite(Config) ->
 end_per_suite(_) ->
     emqx_ct_helpers:stop_apps([emqx_web_hook]).
 
+set_special_cfgs(emqx_web_hook) ->
+    AllRules = [{"message.acked",        "{\"action\": \"on_message_acked\"}"},
+                {"message.delivered",    "{\"action\": \"on_message_delivered\"}"},
+                {"message.publish",      "{\"action\": \"on_message_publish\"}"},
+                {"session.terminated",   "{\"action\": \"on_session_terminated\"}"},
+                {"session.unsubscribed", "{\"action\": \"on_session_unsubscribed\"}"},
+                {"session.subscribed",   "{\"action\": \"on_session_subscribed\"}"},
+                {"client.unsubscribe",   "{\"action\": \"on_client_unsubscribe\"}"},
+                {"client.subscribe",     "{\"action\": \"on_client_subscribe\"}"},
+                {"client.disconnected",  "{\"action\": \"on_client_disconnected\"}"},
+                {"client.connected",     "{\"action\": \"on_client_connected\"}"},
+                {"client.connack",       "{\"action\": \"on_client_connack\"}"},
+                {"client.connect",       "{\"action\": \"on_client_connect\"}"}],
+    application:set_env(emqx_web_hook, rules, AllRules);
 set_special_cfgs(_) ->
     ok.
 
