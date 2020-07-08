@@ -39,8 +39,7 @@ init(Req, ReceiverPid) ->
 %% @private
 handle_request(Req, ReceiverPid) ->
     Method = cowboy_req:method(Req),
-    K1 = cowboy_req:header(<<"k1">>, Req, null),
-    K2 = cowboy_req:header(<<"k2">>, Req, null),
+    Headers = cowboy_req:headers(Req),
     Params =
         case Method of
             <<"GET">> -> cowboy_req:parse_qs(Req);
@@ -48,9 +47,8 @@ handle_request(Req, ReceiverPid) ->
                 {ok, PostVals, _Req2} = cowboy_req:read_urlencoded_body(Req),
                 PostVals
         end,
-    erlang:send(ReceiverPid, Params),
-    io:format("Http Headers ~p~n", [{K1, K2}]),
-    erlang:send(ReceiverPid, {headers, K1, K2}),
+    io:format("Request Data:~p~nHeaders :~p~n", [Params, Headers]),
+    erlang:send(ReceiverPid, {Params, Headers}),
     reply(Req, ok).
 
 %% @private

@@ -67,55 +67,34 @@ t_change_config(_) ->
 
 t_validate_web_hook(_) ->
     http_server:start_http(),
-    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
-                               , {proto_ver, v5}
-                               , {keepalive, 60}
-                               ]),
-    {ok, _} = emqtt:connect(C),
-    emqtt:subscribe(C, <<"TopicA">>, qos2),
-    emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
-    emqtt:unsubscribe(C, <<"TopicA">>),
-    emqtt:disconnect(C),
-    ValidateData = get_http_message(),
-    ?assertEqual(length(ValidateData), 11),
-    [validate_hook_resp(A) || A <- ValidateData],
-    http_server:stop_http().
-
-t_customize_headers(_) ->
-    http_server:start_http(),
-    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
-                               , {proto_ver, v5}
-                               , {keepalive, 60}
-                               ]),
-    {ok, _} = emqtt:connect(C),
-    emqx_web_hook:unload(),
     application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
-    emqx_web_hook:load(),
+    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
+                               , {proto_ver, v5}
+                               , {keepalive, 60}
+                               ]),
+    {ok, _} = emqtt:connect(C),
     emqtt:subscribe(C, <<"TopicA">>, qos2),
     emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
-    receive
-      {headers, K1, K2} ->
-           ?assertEqual(K1, <<"K1">>),
-           ?assertEqual(K2, <<"K2">>);
-      _ -> ok
-    end,
+    {Params, Headers} = get_http_message(),
+    [validate_hook_resp(A) || A <- Params],
+    ?assertEqual(<<"K1">>,  maps:get(<<"k1">>, Headers)),
+    ?assertEqual(<<"K2">>,  maps:get(<<"k2">>, Headers)),
     http_server:stop_http().
 
 %%--------------------------------------------------------------------
 %% Utils
 %%--------------------------------------------------------------------
 
-get_http_message() ->
-    get_http_message([]).
 
-get_http_message(Acc) ->
+get_http_message() ->
     receive
-        Info -> get_http_message([Info | Acc])
-    after
-        300 ->
-            lists:reverse([emqx_json:decode(Info, [return_maps]) || [{Info, _}] <- Acc])
+          {Params, Headers} ->
+            L = [B || {B, _} <- Params],
+            {lists:reverse([emqx_json:decode(E, [return_maps]) || E <- L]), Headers}
+    after 500 ->
+            {null, null}
     end.
 
 validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
