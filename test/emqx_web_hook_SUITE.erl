@@ -81,6 +81,28 @@ t_validate_web_hook(_) ->
     [validate_hook_resp(A) || A <- ValidateData],
     http_server:stop_http().
 
+t_customize_headers(_) ->
+    http_server:start_http(),
+    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
+                               , {proto_ver, v5}
+                               , {keepalive, 60}
+                               ]),
+    {ok, _} = emqtt:connect(C),
+    emqx_web_hook:unload(),
+    application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
+    emqx_web_hook:load(),
+    emqtt:subscribe(C, <<"TopicA">>, qos2),
+    emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
+    emqtt:unsubscribe(C, <<"TopicA">>),
+    emqtt:disconnect(C),
+    receive
+      {headers, K1, K2} ->
+           ?assertEqual(K1, <<"K1">>),
+           ?assertEqual(K2, <<"K2">>);
+      _ -> ok
+    end,
+    http_server:stop_http().
+
 %%--------------------------------------------------------------------
 %% Utils
 %%--------------------------------------------------------------------
