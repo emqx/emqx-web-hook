@@ -1,48 +1,51 @@
 %%-*- mode: erlang -*-
-%% emqx_management rebar.config.script
 
-CONFIG1 = case os:getenv("TRAVIS") of
-              "true" ->
-                  JobId = os:getenv("TRAVIS_JOB_ID"),
-                  [{coveralls_service_job_id, JobId},
-                   {coveralls_coverdata, "_build/test/cover/*.coverdata"},
-                   {coveralls_service_name , "travis-ci"} | CONFIG];
-              _ ->
-                  CONFIG
+DEPS = case lists:keyfind(deps, 1, CONFIG) of
+          {_, Deps} -> Deps;
+          _ -> []
+      end,
+
+ComparingFun = fun
+                _Fun([C1|R1], [C2|R2]) when is_list(C1), is_list(C2);
+                                            is_integer(C1), is_integer(C2) -> C1 < C2 orelse _Fun(R1, R2);
+                _Fun([C1|R1], [C2|R2]) when is_integer(C1), is_list(C2)    -> _Fun(R1, R2);
+                _Fun([C1|R1], [C2|R2]) when is_list(C1), is_integer(C2)    -> true;
+                _Fun(_, _) -> false
+              end,
+
+SortFun = fun(T1, T2) ->
+            C = fun(T) ->
+                  [case catch list_to_integer(E) of
+                      I when is_integer(I) -> I;
+                      _ -> E
+                    end || E <- re:split(string:sub_string(T, 2), "[.-]", [{return, list}])]
+                end,
+            ComparingFun(C(T1), C(T2))
           end,
 
-DEPS = case lists:keyfind(deps, 1, CONFIG1) of
-           {_, Deps} -> Deps;
-           _ -> []
+VTags = string:tokens(os:cmd("git tag -l \"v*\" --points-at $(git rev-parse $(git describe --abbrev=0 --tags))"), "\n"),
+
+Tags = case VTags of
+         [] -> string:tokens(os:cmd("git tag -l \"e*\" --points-at $(git rev-parse $(git describe --abbrev=0 --tags))"), "\n");
+         _ -> VTags
        end,
 
-CUR_BRANCH = case os:getenv("GITHUB_RUN_ID") of
-               false ->
-                 os:cmd("git branch | grep -e '^*' | cut -d' ' -f 2") -- "\n";
-               _ ->
-                 re:replace(os:getenv("GITHUB_REF"), ".*/", "", [global, {return ,list}])
-             end,
+LatestTag = lists:last(lists:sort(SortFun, Tags)),
 
-MATCH_BRANCH = fun (BranchName) ->
-                 case re:run(BranchName, "^release|develop|master", [{capture, none}]) of
-                   match -> BranchName;
-                   _ -> case re:run(BranchName, "^[v]?[0-9]\.[0-9]\.([0-9]|(rc|beta|alpha)\.[0-9])", [{capture, none}]) of
-                          match -> BranchName;
-                          _ -> "develop"
-                        end
-                 end
-               end,
+Branch = os:cmd("git branch | grep -e '^*' | cut -d' ' -f 2") -- "\n",
 
-BRANCH = MATCH_BRANCH(CUR_BRANCH),
+GitDescribe = case re:run(Branch, "master|^dev/|^hotfix/", [{capture, none}]) of
+                match -> {branch, Branch};
+                _ -> {tag, LatestTag}
+              end,
 
 UrlPrefix = "https://github.com/emqx/",
 
-EMQX_DEP = {emqx, {git, UrlPrefix ++ "emqx", {branch, BRANCH}}},
+EMQX_DEP = {emqx, {git, UrlPrefix ++ "emqx", GitDescribe}},
+EMQX_MGMT_DEP = {emqx_management, {git, UrlPrefix ++ "emqx-management", GitDescribe}},
 
-EMQX_RELOADER_DEP = {emqx_reloader, {git, UrlPrefix ++ "emqx-reloader", {branch, BRANCH}}},
+NewDeps = [EMQX_DEP, EMQX_MGMT_DEP | DEPS],
 
-NewDeps = [EMQX_DEP, EMQX_RELOADER_DEP | DEPS],
+CONFIG1 = lists:keystore(deps, 1, CONFIG, {deps, NewDeps}),
 
-CONFIG2 = lists:keystore(deps, 1, CONFIG1, {deps, NewDeps}),
-
-CONFIG2.
+CONFIG1.
