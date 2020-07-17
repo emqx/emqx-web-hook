@@ -58,6 +58,15 @@
   {datatype, string}
 ]}.
 
+{mapping, "web.hook.headers.$name", "emqx_web_hook.headers", [
+  {datatype, string}
+]}.
+
+{translation, "emqx_web_hook.headers", fun(Conf) ->
+  Headers = cuttlefish_variable:filter_by_prefix("web.hook.headers", Conf),
+  [{K, V} || {[_, _, _, K], V} <- Headers]
+end}.
+
 {translation, "emqx_web_hook.rules", fun(Conf) ->
   Hooks = cuttlefish_variable:filter_by_prefix("web.hook.rule", Conf),
   lists:map(

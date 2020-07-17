@@ -311,8 +311,9 @@ on_message_acked(#{clientid := ClientId, username := Username},
 send_http_request(Params) ->
     Params1 = emqx_json:encode(Params),
     Url = application:get_env(?APP, url, "http://127.0.0.1"),
+    Headers = application:get_env(?APP, headers, []),
     ?LOG(debug, "Send to: ~0p, params: ~0s", [Url, Params1]),
-    case request_(post, {Url, [], "application/json", Params1}, [{timeout, 5000}], [], 0) of
+    case request_(post, {Url, Headers, "application/json", Params1}, [{timeout, 5000}], [], 0) of
         {ok, _} -> ok;
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok
