@@ -3,13 +3,12 @@
 
 RemoveLeadingV =
     fun(Tag) ->
-        case re:run(Tag, "v\[0-9\]+\.\[0-9\]+\.*") of
+        case re:run(Tag, "^[v|e]?[0-9]\.[0-9]\.([0-9]|(rc|beta|alpha)\.[0-9])", [{capture, none}]) of
             nomatch ->
                 Tag;
-            {match, _} ->
-                %% if it is a version number prefixed by 'v' then remove the 'v'
-                "v" ++ Vsn = Tag,
-                Vsn
+            _ ->
+                %% if it is a version number prefixed by 'v' or 'e', then remove it
+                re:replace(Tag, "[v|e]", "", [{return ,list}])
         end
     end,
 
