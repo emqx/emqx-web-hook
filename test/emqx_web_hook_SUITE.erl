@@ -67,6 +67,7 @@ t_change_config(_) ->
 
 t_validate_web_hook(_) ->
     http_server:start_http(),
+    application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
     {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
                                , {proto_ver, v5}
                                , {keepalive, 60}
@@ -76,24 +77,24 @@ t_validate_web_hook(_) ->
     emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
-    ValidateData = get_http_message(),
-    ?assertEqual(length(ValidateData), 11),
-    [validate_hook_resp(A) || A <- ValidateData],
+    {Params, Headers} = get_http_message(),
+    [validate_hook_resp(A) || A <- Params],
+    ?assertEqual(<<"K1">>,  maps:get(<<"k1">>, Headers)),
+    ?assertEqual(<<"K2">>,  maps:get(<<"k2">>, Headers)),
     http_server:stop_http().
 
 %%--------------------------------------------------------------------
 %% Utils
 %%--------------------------------------------------------------------
 
-get_http_message() ->
-    get_http_message([]).
 
-get_http_message(Acc) ->
+get_http_message() ->
     receive
-        Info -> get_http_message([Info | Acc])
-    after
-        300 ->
-            lists:reverse([emqx_json:decode(Info, [return_maps]) || [{Info, _}] <- Acc])
+          {Params, Headers} ->
+            L = [B || {B, _} <- Params],
+            {lists:reverse([emqx_json:decode(E, [return_maps]) || E <- L]), Headers}
+    after 500 ->
+            {null, null}
     end.
 
 validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
