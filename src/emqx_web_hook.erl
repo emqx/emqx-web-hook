@@ -320,7 +320,15 @@ send_http_request(Params) ->
 
 request_(Method, Req, HTTPOpts, Opts, Times) ->
     %% Resend request, when TCP closed by remotely
-    case httpc:request(Method, Req, HTTPOpts, Opts) of
+    NHttpOpts = case application:get_env(emqx_web_hook, ssl) of
+       {ok, true} -> 
+           {ok, SslOpts} = application:get_env(emqx_web_hook, ssloptions),
+           HTTPOpts ++ [{ssl, SslOpts}];
+        _ -> 
+           HTTPOpts
+    end,
+    
+    case httpc:request(Method, Req, NHttpOpts, Opts) of
         {error, socket_closed_remotely} when Times < 3 ->
             timer:sleep(trunc(math:pow(10, Times))),
             request_(Method, Req, HTTPOpts, Opts, Times+1);

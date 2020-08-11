@@ -65,8 +65,24 @@ t_change_config(_) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-t_validate_web_hook(_) ->
-    http_server:start_http(),
+tt_validate_web_hook_http(_) ->
+  http_server:start_http(),
+  valid(),
+  http_server:stop_http().
+
+t_validate_web_hook_https(_) ->
+  Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
+  SslOpts = [{keyfile, Path ++ "/client-key.pem"},
+            {certfile, Path ++ "/client-cert.pem"},
+            {cacertfile, Path ++ "/ca.pem"}],
+  application:set_env(emqx_web_hook, ssl, true),
+  application:set_env(emqx_web_hook, ssloptions, SslOpts),
+  application:set_env(emqx_web_hook, url, "https://127.0.0.1:8081"),
+  http_server:start_https(),
+  valid(),
+  http_server:stop_https().
+
+valid() ->
     {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
                                , {proto_ver, v5}
                                , {keepalive, 60}
@@ -77,9 +93,8 @@ t_validate_web_hook(_) ->
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
     ValidateData = get_http_message(),
-    ?assertEqual(length(ValidateData), 11),
-    [validate_hook_resp(A) || A <- ValidateData],
-    http_server:stop_http().
+    true = (11 == length(ValidateData)), 
+    [validate_hook_resp(A) || A <- ValidateData].
 
 %%--------------------------------------------------------------------
 %% Utils
