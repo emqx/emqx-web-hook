@@ -11,22 +11,39 @@
 %%--------------------------------------------------------------------
 %% APIs
 %%--------------------------------------------------------------------
-
-start_http() ->
-    {ok, _} = application:ensure_all_started(cowboy),
-    Dispatch = cowboy_router:compile([
+start() ->
+  {ok, _} = application:ensure_all_started(cowboy),
+  cowboy_router:compile([
         {'_', [
               {"/", ?MODULE, self()}
         ]}
-    ]),
-    {ok, _Pid} = cowboy:start_clear(http, [{port, 8080}], #{
-        env => #{dispatch => Dispatch}
+  ]).
+
+
+start_http() ->
+    {ok, _Pid1} = cowboy:start_clear(http, [{port, 8080}], #{
+        env => #{dispatch => start()}
     }),
     io:format("Start http server on 8080 successfully!~n").
+
+start_https() ->
+  Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
+  SslOpts = [{keyfile, Path ++ "/server-key.pem"},
+             {cacertfile, Path ++ "/ca.pem"},
+            {certfile, Path ++ "/server-cert.pem"}],
+
+  {ok, _Pid2} = cowboy:start_tls(https, [{port, 8081}] ++ SslOpts,
+                                   #{env => #{dispatch => start()}}),
+    io:format(standard_error, "Start https server on 8081 successfully!~n", []).
 
 stop_http() ->
     ok = cowboy:stop_listener(http),
     io:format("Stopped http server on 8080").
+
+stop_https() ->
+    ok = cowboy:stop_listener(https),
+    io:format("Stopped https server on 8081").
+
 
 %%--------------------------------------------------------------------
 %% Callbacks
