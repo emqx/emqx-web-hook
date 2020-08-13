@@ -84,6 +84,7 @@
                 }).
 
 -rule_action(#{name => data_to_webserver,
+               category => data_forward,
                for => '$any',
                create => on_action_create_data_to_webserver,
                params => ?ACTION_DATA_SPEC,
