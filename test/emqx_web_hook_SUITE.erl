@@ -31,16 +31,67 @@
 %%--------------------------------------------------------------------
 
 all() ->
-    emqx_ct:all(?MODULE).
+    [{group, http},
+     {group, https},
+     {group, ipv6http},
+     {group, ipv6https}].
 
-init_per_suite(Config) ->
-    emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_cfgs/1),
+groups() ->
+    Cases = emqx_ct:all(?MODULE),
+    [{http, [sequence], Cases},
+     {https, [sequence], Cases},
+     {ipv6http, [sequence], Cases},
+     {ipv6https, [sequence], Cases}].
+
+init_per_group(Name, Config) ->
+    set_special_cfgs(),
+    case Name of
+        http ->
+            http_server:start_http(),
+            emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_http/1);
+        https ->
+            http_server:start_https(),
+            emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_https/1);
+        ipv6http ->
+            http_server:start_http(),
+            emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_ipv6_http/1);
+        ipv6https ->
+            http_server:start_https(),
+            emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_ipv6_https/1)
+    end,
     Config.
 
-end_per_suite(_) ->
-    emqx_ct_helpers:stop_apps([emqx_web_hook]).
+end_per_group(Name, Config) ->
+    case lists:member(Name,[http, ipv6http]) of
+        true ->
+            http_server:stop_http();
+        _ ->
+            http_server:stop_https()
+    end,
+    emqx_ct_helpers:stop_apps([emqx_web_hook]),
+    Config.
 
-set_special_cfgs(emqx_web_hook) ->
+set_special_configs_http(_) ->
+    ok.
+
+set_special_configs_https(_) ->
+    Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
+    SslOpts = [{keyfile, Path ++ "/client-key.pem"},
+               {certfile, Path ++ "/client-cert.pem"},
+               {cacertfile, Path ++ "/ca.pem"}],
+    application:set_env(emqx_web_hook, ssl, true),
+    application:set_env(emqx_web_hook, ssloptions, SslOpts),
+    application:set_env(emqx_web_hook, url, "https://127.0.0.1:8081").
+
+set_special_configs_ipv6_http(N) ->
+    set_special_configs_http(N),
+    application:set_env(emqx_web_hook, url, "http://[::1]:8080").
+
+set_special_configs_ipv6_https(N) ->
+    set_special_configs_https(N),
+    application:set_env(emqx_web_hook, url, "https://[::1]:8081").
+
+set_special_cfgs() ->
     AllRules = [{"message.acked",        "{\"action\": \"on_message_acked\"}"},
                 {"message.delivered",    "{\"action\": \"on_message_delivered\"}"},
                 {"message.publish",      "{\"action\": \"on_message_publish\"}"},
@@ -53,10 +104,7 @@ set_special_cfgs(emqx_web_hook) ->
                 {"client.connected",     "{\"action\": \"on_client_connected\"}"},
                 {"client.connack",       "{\"action\": \"on_client_connack\"}"},
                 {"client.connect",       "{\"action\": \"on_client_connect\"}"}],
-    application:set_env(emqx_web_hook, rules, AllRules);
-set_special_cfgs(_) ->
-    ok.
-
+    application:set_env(emqx_web_hook, rules, AllRules).
 %%--------------------------------------------------------------------
 %% Test cases
 %%--------------------------------------------------------------------
@@ -79,8 +127,7 @@ t_change_config(_) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-t_validate_web_hook(_) ->
-    http_server:start_http(),
+t_valid() ->
     application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
     {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
                                , {proto_ver, v5}
@@ -94,13 +141,11 @@ t_validate_web_hook(_) ->
     {Params, Headers} = get_http_message(),
     [validate_hook_resp(A) || A <- Params],
     ?assertEqual(<<"K1">>,  maps:get(<<"k1">>, Headers)),
-    ?assertEqual(<<"K2">>,  maps:get(<<"k2">>, Headers)),
-    http_server:stop_http().
+    ?assertEqual(<<"K2">>,  maps:get(<<"k2">>, Headers)).
 
 %%--------------------------------------------------------------------
 %% Utils
 %%--------------------------------------------------------------------
-
 
 get_http_message() ->
     receive

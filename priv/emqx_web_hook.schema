@@ -5,6 +5,26 @@
   {datatype, string}
 ]}.
 
+{mapping, "web.hook.ssl", "emqx_web.hook.ssl", [
+  {default, off},
+  {datatype, flag}
+]}.
+
+{mapping, "web.hook.ssl.cafile", "emqx_web_hook.ssloptions", [
+  {default, ""},
+  {datatype, string}
+]}.
+
+{mapping, "web.hook.ssl.certfile", "emqx_web_hook.ssloptions", [
+  {default, ""},
+  {datatype, string}
+]}.
+
+{mapping, "web.hook.ssl.keyfile", "emqx_web_hook.ssloptions", [
+  {default, ""},
+  {datatype, string}
+]}.
+
 {mapping, "web.hook.encode_payload", "emqx_web_hook.encode_payload", [
   {default, undefined},
   {datatype, {enum, [base62, base64]}}
@@ -73,4 +93,14 @@ end}.
     fun({[_, _, _,Name1,Name2, _], Val}) -> 
 	  {lists:concat([Name1,".",Name2]), Val}
 	end, Hooks)
+end}.
+
+{translation, "emqx_web_hook.ssloptions", fun(Conf) ->
+     CA = cuttlefish:conf_get("web.hook.ssl.cafile", Conf),
+     Cert = cuttlefish:conf_get("web.hook.ssl.certfile", Conf),
+     Key = cuttlefish:conf_get("web.hook.ssl.keyfile", Conf),
+     case ((Cert == "") or (Key == "")) of
+          true -> [{cacertfile, CA}];
+          _ -> [{cacertfile, CA}, {certfile, Cert}, {keyfile, Key}]
+     end
 end}.
