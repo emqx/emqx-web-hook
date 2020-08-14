@@ -321,7 +321,11 @@ send_http_request(Params) ->
 
 request_(Method, Req, HTTPOpts, Opts, Times) ->
     %% Resend request, when TCP closed by remotely
-    case httpc:request(Method, Req, HTTPOpts, Opts) of
+    NHttpOpts = case application:get_env(?APP, ssl, false) of
+        true -> [{ssl, application:get_env(?APP, ssloptions, [])} | HTTPOpts];
+        _ -> HTTPOpts
+    end,
+    case httpc:request(Method, Req, NHttpOpts, Opts) of
         {error, socket_closed_remotely} when Times < 3 ->
             timer:sleep(trunc(math:pow(10, Times))),
             request_(Method, Req, HTTPOpts, Opts, Times+1);
