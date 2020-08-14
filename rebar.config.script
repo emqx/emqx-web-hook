@@ -32,7 +32,10 @@ Tags = case VTags of
 
 LatestTag = lists:last(lists:sort(SortFun, Tags)),
 
-Branch = os:cmd("git branch | grep -e '^*' | cut -d' ' -f 2") -- "\n",
+Branch = case os:getenv("GITHUB_RUN_ID") of
+                false -> os:cmd("git branch | grep -e '^*' | cut -d' ' -f 2") -- "\n";
+                _ -> re:replace(os:getenv("GITHUB_REF"), "^refs/heads/|^refs/tags/", "", [global, {return ,list}])
+         end,
 
 GitDescribe = case re:run(Branch, "master|^dev/|^hotfix/", [{capture, none}]) of
                 match -> {branch, Branch};
