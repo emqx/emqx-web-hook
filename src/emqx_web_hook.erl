@@ -88,6 +88,7 @@ on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peern
     emqx_metrics:inc('webhook.client_connect'),
     Params = #{ action => client_connect
               , clientid => ClientId
+              , node => node()
               , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
               , keepalive => maps:get(keepalive, ConnInfo)
@@ -103,6 +104,7 @@ on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peern
     emqx_metrics:inc('webhook.client_connack'),
     Params = #{ action => client_connack
               , clientid => ClientId
+              , node => node()
               , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
               , keepalive => maps:get(keepalive, ConnInfo)
@@ -119,6 +121,7 @@ on_client_connected(#{clientid := ClientId, username := Username, peerhost := Pe
     emqx_metrics:inc('webhook.client_connected'),
     Params = #{ action => client_connected
               , clientid => ClientId
+              , node => node()
               , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
               , keepalive => maps:get(keepalive, ConnInfo)
@@ -137,6 +140,7 @@ on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _C
     emqx_metrics:inc('webhook.client_disconnected'),
     Params = #{ action => client_disconnected
               , clientid => ClientId
+              , node => node()
               , username => maybe(Username)
               , reason => stringfy(maybe(Reason))
               },
@@ -153,6 +157,7 @@ on_client_subscribe(#{clientid := ClientId, username := Username}, _Properties, 
           emqx_metrics:inc('webhook.client_subscribe'),
           Params = #{ action => client_subscribe
                     , clientid => ClientId
+                    , node => node()
                     , username => maybe(Username)
                     , topic => Topic
                     , opts => Opts
@@ -172,6 +177,7 @@ on_client_unsubscribe(#{clientid := ClientId, username := Username}, _Properties
           emqx_metrics:inc('webhook.client_unsubscribe'),
           Params = #{ action => client_unsubscribe
                     , clientid => ClientId
+                    , node => node()
                     , username => maybe(Username)
                     , topic => Topic
                     , opts => Opts
@@ -190,6 +196,7 @@ on_session_subscribed(#{clientid := ClientId, username := Username}, Topic, Opts
         emqx_metrics:inc('webhook.session_subscribed'),
         Params = #{ action => session_subscribed
                   , clientid => ClientId
+                  , node => node()
                   , username => maybe(Username)
                   , topic => Topic
                   , opts => Opts
@@ -208,6 +215,7 @@ on_session_unsubscribed(#{clientid := ClientId, username := Username}, Topic, _O
         Params = #{ action => session_unsubscribed
                   , clientid => ClientId
                   , username => maybe(Username)
+                  , node => node()
                   , topic => Topic
                   },
         send_http_request(Params)
@@ -223,6 +231,7 @@ on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _Se
     emqx_metrics:inc('webhook.session_terminated'),
     Params = #{ action => session_terminated
               , clientid => ClientId
+              , node => node()
               , username => maybe(Username)
               , reason => stringfy(maybe(Reason))
               },
@@ -241,6 +250,7 @@ on_message_publish(Message = #message{topic = Topic}, {Filter}) ->
         {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_publish
                   , from_client_id => FromClientId
+                  , node => node()
                   , from_username => FromUsername
                   , topic => Message#message.topic
                   , qos => Message#message.qos
@@ -266,6 +276,7 @@ on_message_delivered(#{clientid := ClientId, username := Username},
       {FromClientId, FromUsername} = parse_from(Message),
       Params = #{ action => message_delivered
                 , clientid => ClientId
+                , node => node()
                 , username => maybe(Username)
                 , from_client_id => FromClientId
                 , from_username => FromUsername
@@ -292,6 +303,7 @@ on_message_acked(#{clientid := ClientId, username := Username},
         {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_acked
                   , clientid => ClientId
+                  , node => node()
                   , username => maybe(Username)
                   , from_client_id => FromClientId
                   , from_username => FromUsername
