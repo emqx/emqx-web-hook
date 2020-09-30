@@ -87,6 +87,7 @@ unload() ->
 on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peername := {Peerhost, _}}, _ConnProp, _Env) ->
     emqx_metrics:inc('webhook.client_connect'),
     Params = #{ action => client_connect
+              , node => node()
               , clientid => ClientId
               , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
@@ -102,6 +103,7 @@ on_client_connect(ConnInfo = #{clientid := ClientId, username := Username, peern
 on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peername := {Peerhost, _}}, Rc, _AckProp, _Env) ->
     emqx_metrics:inc('webhook.client_connack'),
     Params = #{ action => client_connack
+              , node => node()
               , clientid => ClientId
               , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
@@ -118,6 +120,7 @@ on_client_connack(ConnInfo = #{clientid := ClientId, username := Username, peern
 on_client_connected(#{clientid := ClientId, username := Username, peerhost := Peerhost}, ConnInfo, _Env) ->
     emqx_metrics:inc('webhook.client_connected'),
     Params = #{ action => client_connected
+              , node => node()
               , clientid => ClientId
               , username => maybe(Username)
               , ipaddress => iolist_to_binary(ntoa(Peerhost))
@@ -133,12 +136,14 @@ on_client_connected(#{clientid := ClientId, username := Username, peerhost := Pe
 
 on_client_disconnected(ClientInfo, {shutdown, Reason}, ConnInfo, Env) when is_atom(Reason) ->
     on_client_disconnected(ClientInfo, Reason, ConnInfo, Env);
-on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, _ConnInfo, _Env) ->
+on_client_disconnected(#{clientid := ClientId, username := Username}, Reason, ConnInfo, _Env) ->
     emqx_metrics:inc('webhook.client_disconnected'),
     Params = #{ action => client_disconnected
+              , node => node()
               , clientid => ClientId
               , username => maybe(Username)
               , reason => stringfy(maybe(Reason))
+              , disconnected_at => maps:get(disconnected_at, ConnInfo, erlang:system_time(millisecond))
               },
     send_http_request(Params).
 
@@ -152,6 +157,7 @@ on_client_subscribe(#{clientid := ClientId, username := Username}, _Properties, 
         fun() ->
           emqx_metrics:inc('webhook.client_subscribe'),
           Params = #{ action => client_subscribe
+                    , node => node()
                     , clientid => ClientId
                     , username => maybe(Username)
                     , topic => Topic
@@ -171,6 +177,7 @@ on_client_unsubscribe(#{clientid := ClientId, username := Username}, _Properties
         fun() ->
           emqx_metrics:inc('webhook.client_unsubscribe'),
           Params = #{ action => client_unsubscribe
+                    , node => node()
                     , clientid => ClientId
                     , username => maybe(Username)
                     , topic => Topic
@@ -189,6 +196,7 @@ on_session_subscribed(#{clientid := ClientId, username := Username}, Topic, Opts
       fun() ->
         emqx_metrics:inc('webhook.session_subscribed'),
         Params = #{ action => session_subscribed
+                  , node => node()
                   , clientid => ClientId
                   , username => maybe(Username)
                   , topic => Topic
@@ -206,6 +214,7 @@ on_session_unsubscribed(#{clientid := ClientId, username := Username}, Topic, _O
       fun() ->
         emqx_metrics:inc('webhook.session_unsubscribed'),
         Params = #{ action => session_unsubscribed
+                  , node => node()
                   , clientid => ClientId
                   , username => maybe(Username)
                   , topic => Topic
@@ -222,6 +231,7 @@ on_session_terminated(Info, {shutdown, Reason}, SessInfo, Env) when is_atom(Reas
 on_session_terminated(#{clientid := ClientId, username := Username}, Reason, _SessInfo, _Env) ->
     emqx_metrics:inc('webhook.session_terminated'),
     Params = #{ action => session_terminated
+              , node => node()
               , clientid => ClientId
               , username => maybe(Username)
               , reason => stringfy(maybe(Reason))
@@ -240,6 +250,7 @@ on_message_publish(Message = #message{topic = Topic}, {Filter}) ->
         emqx_metrics:inc('webhook.message_publish'),
         {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_publish
+                  , node => node()
                   , from_client_id => FromClientId
                   , from_username => FromUsername
                   , topic => Message#message.topic
@@ -265,6 +276,7 @@ on_message_delivered(#{clientid := ClientId, username := Username},
       emqx_metrics:inc('webhook.message_delivered'),
       {FromClientId, FromUsername} = parse_from(Message),
       Params = #{ action => message_delivered
+                , node => node()
                 , clientid => ClientId
                 , username => maybe(Username)
                 , from_client_id => FromClientId
@@ -291,6 +303,7 @@ on_message_acked(#{clientid := ClientId, username := Username},
         emqx_metrics:inc('webhook.message_acked'),
         {FromClientId, FromUsername} = parse_from(Message),
         Params = #{ action => message_acked
+                  , node => node()
                   , clientid => ClientId
                   , username => maybe(Username)
                   , from_client_id => FromClientId
