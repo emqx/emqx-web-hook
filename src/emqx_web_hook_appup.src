@@ -1,0 +1,18 @@
+{"4.2.2",
+ [
+   {"4.2.1", [
+     {load_module, emqx_web_hook, brutal_purge, soft_purge, []}
+   ]},
+   {"4.2.0", [
+     {load_module, emqx_web_hook, brutal_purge, soft_purge, []}
+   ]}
+ ],
+ [
+   {"4.2.1", [
+     {load_module, emqx_web_hook, brutal_purge, soft_purge, []}
+   ]},
+   {"4.2.0", [
+     {load_module, emqx_web_hook, brutal_purge, soft_purge, []}
+   ]}
+ ]
+}.
