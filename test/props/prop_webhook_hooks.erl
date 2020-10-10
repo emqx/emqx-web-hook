@@ -47,6 +47,7 @@ prop_client_connect() ->
            Body = receive_http_request_body(),
            Body = emqx_json:encode(
                     #{action => client_connect,
+                      node => stringfy(node()),
                       clientid => maps:get(clientid, ConnInfo),
                       username => maybe(maps:get(username, ConnInfo)),
                       ipaddress => peer2addr(maps:get(peername, ConnInfo)),
@@ -64,6 +65,7 @@ prop_client_connack() ->
             Body = receive_http_request_body(),
             Body = emqx_json:encode(
                      #{action => client_connack,
+                       node => stringfy(node()),
                        clientid => maps:get(clientid, ConnInfo),
                        username => maybe(maps:get(username, ConnInfo)),
                        ipaddress => peer2addr(maps:get(peername, ConnInfo)),
@@ -82,6 +84,7 @@ prop_client_connected() ->
             Body = receive_http_request_body(),
             Body = emqx_json:encode(
                      #{action => client_connected,
+                       node => stringfy(node()),
                        clientid => maps:get(clientid, ClientInfo),
                        username => maybe(maps:get(username, ClientInfo)),
                        ipaddress => peer2addr(maps:get(peerhost, ClientInfo)),
@@ -94,14 +97,16 @@ prop_client_connected() ->
 
 prop_client_disconnected() ->
     ?ALL({ClientInfo, Reason, ConnInfo, Env},
-         {clientinfo(), shutdown_reason(), conninfo(), empty_env()},
+         {clientinfo(), shutdown_reason(), disconnected_conninfo(), empty_env()},
         begin
             ok = emqx_web_hook:on_client_disconnected(ClientInfo, Reason, ConnInfo, Env),
             Body = receive_http_request_body(),
             Body = emqx_json:encode(
                      #{action => client_disconnected,
+                       node => stringfy(node()),
                        clientid => maps:get(clientid, ClientInfo),
                        username => maybe(maps:get(username, ClientInfo)),
+                       disconnected_at => maps:get(disconnected_at, ConnInfo),
                        reason => stringfy(Reason)
                       }),
             true
@@ -119,6 +124,7 @@ prop_client_subscribe() ->
                 Body = receive_http_request_body(),
                 Body = emqx_json:encode(
                          #{action => client_subscribe,
+                           node => stringfy(node()),
                            clientid => maps:get(clientid, ClientInfo),
                            username => maybe(maps:get(username, ClientInfo)),
                            topic => Topic,
@@ -139,6 +145,7 @@ prop_client_unsubscribe() ->
                 Body = receive_http_request_body(),
                 Body = emqx_json:encode(
                          #{action => client_unsubscribe,
+                           node => stringfy(node()),
                            clientid => maps:get(clientid, ClientInfo),
                            username => maybe(maps:get(username, ClientInfo)),
                            topic => Topic,
@@ -156,6 +163,7 @@ prop_session_subscribed() ->
                 Body = receive_http_request_body(),
                 Body1 = emqx_json:encode(
                          #{action => session_subscribed,
+                           node => stringfy(node()),
                            clientid => maps:get(clientid, ClientInfo),
                            username => maybe(maps:get(username, ClientInfo)),
                            topic => Topic,
@@ -175,6 +183,7 @@ prop_session_unsubscribed() ->
                 Body = receive_http_request_body(),
                 Body = emqx_json:encode(
                          #{action => session_unsubscribed,
+                           node => stringfy(node()),
                            clientid => maps:get(clientid, ClientInfo),
                            username => maybe(maps:get(username, ClientInfo)),
                            topic => Topic
@@ -191,6 +200,7 @@ prop_session_terminated() ->
             Body = receive_http_request_body(),
             Body = emqx_json:encode(
                      #{action => session_terminated,
+                       node => stringfy(node()),
                        clientid => maps:get(clientid, ClientInfo),
                        username => maybe(maps:get(username, ClientInfo)),
                        reason => stringfy(Reason)
@@ -211,6 +221,7 @@ prop_message_publish() ->
                     Body = receive_http_request_body(),
                     Body = emqx_json:encode(
                              #{action => message_publish,
+                               node => stringfy(node()),
                                from_client_id => emqx_message:from(Msg),
                                from_username => maybe(emqx_message:get_header(username, Msg)),
                                topic => emqx_message:topic(Msg),
@@ -236,6 +247,7 @@ prop_message_delivered() ->
                     Body = receive_http_request_body(),
                     Body = emqx_json:encode(
                              #{action => message_delivered,
+                               node => stringfy(node()),
                                clientid => maps:get(clientid, ClientInfo),
                                username => maybe(maps:get(username, ClientInfo)),
                                from_client_id => emqx_message:from(Msg),
@@ -263,6 +275,7 @@ prop_message_acked() ->
                     Body = receive_http_request_body(),
                     Body = emqx_json:encode(
                              #{action => message_acked,
+                               node => stringfy(node()),
                                clientid => maps:get(clientid, ClientInfo),
                                username => maybe(maps:get(username, ClientInfo)),
                                from_client_id => emqx_message:from(Msg),
@@ -305,6 +318,7 @@ prop_try_again() ->
                     Bodys = receive_http_request_bodys(),
                     Body = emqx_json:encode(
                              #{action => client_connect,
+                               node => stringfy(node()),
                                clientid => maps:get(clientid, ConnInfo),
                                username => maybe(maps:get(username, ConnInfo)),
                                ipaddress => peer2addr(maps:get(peername, ConnInfo)),
@@ -422,3 +436,9 @@ payload_encode() ->
 
 http_code() ->
     oneof([socket_closed_remotely, others]).
+
+disconnected_conninfo() ->
+    ?LET(Info, conninfo(),
+         begin
+           Info#{disconnected_at => erlang:system_time(millisecond)}
+         end).
