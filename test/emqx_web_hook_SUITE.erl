@@ -139,7 +139,6 @@ t_valid() ->
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
     {Params, Headers} = get_http_message(),
-    ct:pal("Params ===========>~p~n", [Params]),
     [validate_hook_resp(A) || A <- Params],
     ?assertEqual(<<"K1">>,  maps:get(<<"k1">>, Headers)),
     ?assertEqual(<<"K2">>,  maps:get(<<"k2">>, Headers)).
