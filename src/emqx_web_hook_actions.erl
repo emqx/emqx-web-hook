@@ -37,7 +37,7 @@
                          description => #{en => <<"Request Header">>,
                                           zh => <<"请求头"/utf8>>}},
             method => #{type => string,
-                        enum => [<<"PUT">>,<<"POST">>],
+                        enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
                         default => <<"POST">>,
                         title => #{en => <<"Request Method">>,
                                    zh => <<"请求方法"/utf8>>},
@@ -69,8 +69,6 @@
                                  zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
             }
         }).
-
--define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
@@ -157,15 +155,21 @@ format_msg(Tokens, Data) ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
+create_req(get, Url, Headers, _) ->
+  {(Url), (Headers)};
+
+create_req(_, Url, Headers, Body) ->
+  {(Url), (Headers), "application/json", (Body)}.
+
 http_request(Url, Headers, Method, Params) ->
-    logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
-    case do_http_request(Method, ?JSON_REQ(Url, Headers, Params),
-                         [{timeout, 5000}], [], 0) of
-        {ok, _} -> ok;
-        {error, Reason} ->
-            logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
-            error({http_request_error, Reason})
-    end.
+  logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
+  case do_http_request(Method, create_req(Method, Url, Headers, Params),
+    [{timeout, 5000}], [], 0) of
+    {ok, _} -> ok;
+    {error, Reason} ->
+      logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
+      error({http_request_error, Reason})
+  end.
 
 do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
     %% Resend request, when TCP closed by remotely
