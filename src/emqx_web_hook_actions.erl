@@ -39,10 +39,10 @@
             method => #{type => string,
                         enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
                         default => <<"POST">>,
-                        title => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
-                                   zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>},
-                        description => #{en => <<"Request Method">>,
-                                         zh => <<"请求方法"/utf8>>}}
+                        title => #{en => <<"Request Method">>,
+                                   zh => <<"请求方法"/utf8>>},
+                        description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
+                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
