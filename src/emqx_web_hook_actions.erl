@@ -22,76 +22,81 @@
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
-            url => #{type => string,
-                     format => url,
-                     required => true,
-                     title => #{en => <<"Request URL">>,
-                                zh => <<"请求 URL"/utf8>>},
-                     description => #{en => <<"Request URL">>,
-                                      zh => <<"请求 URL"/utf8>>}},
-            headers => #{type => object,
-                         schema => #{},
-                         default => #{},
-                         title => #{en => <<"Request Header">>,
-                                    zh => <<"请求头"/utf8>>},
-                         description => #{en => <<"Request Header">>,
-                                          zh => <<"请求头"/utf8>>}},
-            method => #{type => string,
-                        enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
-                        default => <<"POST">>,
-                        title => #{en => <<"Request Method">>,
-                                   zh => <<"请求方法"/utf8>>},
-                        description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
-                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}}
-        }).
+    url => #{type => string,
+        format => url,
+        required => true,
+        title => #{en => <<"Request URL">>,
+                   zh => <<"请求 URL"/utf8>>},
+        description => #{en => <<"Request URL">>,
+                         zh => <<"请求 URL"/utf8>>}},
+    headers => #{type => object,
+        schema => #{},
+        default => #{},
+        title => #{en => <<"Request Header">>,
+                   zh => <<"请求头"/utf8>>},
+        description => #{en => <<"Request Header">>,
+                         zh => <<"请求头"/utf8>>}},
+    method => #{type => string,
+        enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
+        default => <<"POST">>,
+        title => #{en => <<"Request Method">>,
+                   zh => <<"请求方法"/utf8>>},
+        description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
+                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}},
+    path => #{type => string,
+        required => false,
+        default => <<>>,
+        title => #{en => <<"Path">>},
+        description => #{en => <<"A path component, variable interpolation from SQL statement is supported. This value will be concatenated with Request URL.">>}}
+}).
 
 -define(ACTION_PARAM_RESOURCE, #{
-            order => 0,
-            type => string,
-            required => true,
-            title => #{en => <<"Resource ID">>,
-                       zh => <<"资源 ID"/utf8>>},
-            description => #{en => <<"Bind a resource to this action">>,
-                             zh => <<"给动作绑定一个资源"/utf8>>}
-        }).
+    order => 0,
+    type => string,
+    required => true,
+    title => #{en => <<"Resource ID">>,
+               zh => <<"资源 ID"/utf8>>},
+    description => #{en => <<"Bind a resource to this action">>,
+                     zh => <<"给动作绑定一个资源"/utf8>>}
+}).
 
 -define(ACTION_DATA_SPEC, #{
-            '$resource' => ?ACTION_PARAM_RESOURCE,
-            payload_tmpl => #{
-                order => 1,
-                type => string,
-                input => textarea,
-                required => false,
-                default => <<"">>,
-                title => #{en => <<"Payload Template">>,
-                           zh => <<"消息内容模板"/utf8>>},
-                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JOSN format">>,
-                                 zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
-            }
-        }).
+    '$resource' => ?ACTION_PARAM_RESOURCE,
+    payload_tmpl => #{
+        order => 1,
+        type => string,
+        input => textarea,
+        required => false,
+        default => <<"">>,
+        title => #{en => <<"Payload Template">>,
+                   zh => <<"消息内容模板"/utf8>>},
+        description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JOSN format">>,
+                         zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
+    }
+}).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
-                 create => on_resource_create,
-                 status => on_get_resource_status,
-                 destroy => on_resource_destroy,
-                 params => ?RESOURCE_CONFIG_SPEC,
-                 title => #{en => <<"WebHook">>,
-                            zh => <<"WebHook"/utf8>>},
-                 description => #{en => <<"WebHook">>,
-                                  zh => <<"WebHook"/utf8>>}
-                }).
+    create => on_resource_create,
+    status => on_get_resource_status,
+    destroy => on_resource_destroy,
+    params => ?RESOURCE_CONFIG_SPEC,
+    title => #{en => <<"WebHook">>,
+               zh => <<"WebHook"/utf8>>},
+    description => #{en => <<"WebHook">>,
+                     zh => <<"WebHook"/utf8>>}
+}).
 
 -rule_action(#{name => data_to_webserver,
-               category => data_forward,
-               for => '$any',
-               create => on_action_create_data_to_webserver,
-               params => ?ACTION_DATA_SPEC,
-               types => [?RESOURCE_TYPE_WEBHOOK],
-               title => #{en => <<"Data to Web Server">>,
-                          zh => <<"发送数据到 Web 服务"/utf8>>},
-               description => #{en => <<"Forward Messages to Web Server">>,
-                                zh => <<"将数据转发给 Web 服务"/utf8>>}
-              }).
+    category => data_forward,
+    for => '$any',
+    create => on_action_create_data_to_webserver,
+    params => ?ACTION_DATA_SPEC,
+    types => [?RESOURCE_TYPE_WEBHOOK],
+    title => #{en => <<"Data to Web Server">>,
+               zh => <<"发送数据到 Web 服务"/utf8>>},
+    description => #{en => <<"Forward Messages to Web Server">>,
+                     zh => <<"将数据转发给 Web 服务"/utf8>>}
+}).
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
 
@@ -100,12 +105,12 @@
 -export_type([action_fun/0]).
 
 -export([ on_resource_create/2
-        , on_get_resource_status/2
-        , on_resource_destroy/2
-        ]).
+    , on_get_resource_status/2
+    , on_resource_destroy/2
+]).
 
 -export([ on_action_create_data_to_webserver/2
-        ]).
+]).
 
 %%------------------------------------------------------------------------------
 %% Actions for web hook
@@ -124,13 +129,13 @@ on_resource_create(ResId, Conf = #{<<"url">> := Url}) ->
 -spec(on_get_resource_status(binary(), map()) -> map()).
 on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
     #{is_alive =>
-        case emqx_rule_utils:http_connectivity(Url) of
-            ok -> true;
-            {error, Reason} ->
-                ?LOG(error, "Connectivity Check for ~p failed, ResId: ~p, ~0p",
-                     [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
-                false
-        end}.
+    case emqx_rule_utils:http_connectivity(Url) of
+        ok -> true;
+        {error, Reason} ->
+            ?LOG(error, "Connectivity Check for ~p failed, ResId: ~p, ~0p",
+                [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            false
+    end}.
 
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
 on_resource_destroy(_ResId, _Params) ->
@@ -139,37 +144,39 @@ on_resource_destroy(_ResId, _Params) ->
 %% An action that forwards publish messages to a remote web server.
 -spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
 on_action_create_data_to_webserver(_Id, Params) ->
-    #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl}
+    #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl, path := Path}
         = parse_action_params(Params),
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
+    PathTks = emqx_rule_utils:preproc_tmpl(Path),
     fun(Selected, _Envs) ->
-        http_request(Url, Headers, Method, format_msg(PayloadTks, Selected))
+        FullUrl = Url ++ emqx_rule_utils:proc_tmpl(PathTks, Selected),
+        http_request(FullUrl, Headers, Method, format_msg(PayloadTks, Selected))
     end.
 
 format_msg([], Data) ->
     emqx_json:encode(Data);
 format_msg(Tokens, Data) ->
-     emqx_rule_utils:proc_tmpl(Tokens, Data).
+    emqx_rule_utils:proc_tmpl(Tokens, Data).
 
 %%------------------------------------------------------------------------------
 %% Internal functions
 %%------------------------------------------------------------------------------
 
 create_req(get, Url, Headers, _) ->
-  {(Url), (Headers)};
+    {(Url), (Headers)};
 
 create_req(_, Url, Headers, Body) ->
-  {(Url), (Headers), "application/json", (Body)}.
+    {(Url), (Headers), "application/json", (Body)}.
 
 http_request(Url, Headers, Method, Params) ->
-  logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
-  case do_http_request(Method, create_req(Method, Url, Headers, Params),
-    [{timeout, 5000}], [], 0) of
-    {ok, _} -> ok;
-    {error, Reason} ->
-      logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
-      error({http_request_error, Reason})
-  end.
+    logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
+    case do_http_request(Method, create_req(Method, Url, Headers, Params),
+        [{timeout, 5000}], [], 0) of
+        {ok, _} -> ok;
+        {error, Reason} ->
+            logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
+            error({http_request_error, Reason})
+    end.
 
 do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
     %% Resend request, when TCP closed by remotely
@@ -183,9 +190,10 @@ do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
 parse_action_params(Params = #{<<"url">> := Url}) ->
     try
         #{url => str(Url),
-          headers => headers(maps:get(<<"headers">>, Params, undefined)),
-          method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>)}
+            headers => headers(maps:get(<<"headers">>, Params, undefined)),
+            method => method(maps:get(<<"method">>, Params, <<"POST">>)),
+            payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
+            path => maps:get(<<"path">>, Params, <<>>)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
@@ -199,8 +207,8 @@ headers(undefined) -> [];
 headers(Headers) when is_list(Headers) -> Headers;
 headers(Headers) when is_map(Headers) ->
     maps:fold(fun(K, V, Acc) ->
-            [{str(K), str(V)} | Acc]
-        end, [], Headers).
+        [{str(K), str(V)} | Acc]
+              end, [], Headers).
 
 str(Str) when is_list(Str) -> Str;
 str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
