@@ -42,13 +42,7 @@
                         title => #{en => <<"Request Method">>,
                                    zh => <<"请求方法"/utf8>>},
                         description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
-                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}},
-            path => #{type => string,
-                      required => false,
-                      default => <<>>,
-                      title => #{en => <<"Path">>,
-                                 zh => <<"Path">>},
-                      description => #{en => <<"A path component, variable interpolation from SQL statement is supported. This value will be concatenated with Request URL.">>}}
+                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -73,8 +67,14 @@
                            zh => <<"消息内容模板"/utf8>>},
                 description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JOSN format">>,
                                  zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
-            }
-        }).
+            },
+            path => #{type => string,
+                      required => false,
+                      default => <<>>,
+                      title => #{en => <<"Path">>,
+                                 zh => <<"Path">>},
+                      description => #{en => <<"A path component, variable interpolation from SQL statement is supported. This value will be concatenated with Request URL.">>}}
+            }).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
