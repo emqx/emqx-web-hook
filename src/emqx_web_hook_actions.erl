@@ -26,23 +26,29 @@
                      format => url,
                      required => true,
                      title => #{en => <<"Request URL">>,
-                                zh => <<"请求 URL"/utf8>>},
+                                zh => <<"请求 URL"/utf8>>,
+                                ja => <<"リクエスト URL"/utf8>>},
                      description => #{en => <<"Request URL">>,
-                                      zh => <<"请求 URL"/utf8>>}},
+                                      zh => <<"请求 URL"/utf8>>,
+                                      ja => <<"リクエスト URL"/utf8>>}},
             headers => #{type => object,
                          schema => #{},
                          default => #{},
                          title => #{en => <<"Request Header">>,
-                                    zh => <<"请求头"/utf8>>},
+                                    zh => <<"请求头"/utf8>>,
+                                    ja => <<"リクエストヘッダ"/utf8>>},
                          description => #{en => <<"Request Header">>,
-                                          zh => <<"请求头"/utf8>>}},
+                                          zh => <<"请求头"/utf8>>,
+                                          ja => <<"リクエストヘッダ"/utf8>>}},
             method => #{type => string,
                         enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
                         default => <<"POST">>,
                         title => #{en => <<"Request Method">>,
-                                   zh => <<"请求方法"/utf8>>},
+                                   zh => <<"请求方法"/utf8>>,
+                                   ja => <<"リクエストメソッド"/utf8>>},
                         description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
-                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}}
+                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>,
+                                         ja => <<"リクエストメソッドです。GETを選択した場合は、payload_templateの値は無視されます"/utf8>>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -51,8 +57,10 @@
             required => true,
             title => #{en => <<"Resource ID">>,
                        zh => <<"资源 ID"/utf8>>},
+                       ja => <<"リソース ID"/utf8>>
             description => #{en => <<"Bind a resource to this action">>,
-                             zh => <<"给动作绑定一个资源"/utf8>>}
+                             zh => <<"给动作绑定一个资源"/utf8>>,
+                             ja => <<"このアクションにリソースを紐付けます"/utf8>>}
         }).
 
 -define(ACTION_DATA_SPEC, #{
@@ -64,9 +72,11 @@
                 required => false,
                 default => <<"">>,
                 title => #{en => <<"Payload Template">>,
-                           zh => <<"消息内容模板"/utf8>>},
-                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JOSN format">>,
-                                 zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
+                           zh => <<"消息内容模板"/utf8>>,
+                           ja => <<"リクエストペイロードのテンプレート"/utf8>>},
+                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JSON format">>,
+                                 zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>,
+                                 ja => <<"リクエストペイロードのテンプレートです。ルールエンジンで定義した変数を使用することができます。入力が空の場合は、存在する全ての変数がペイロードのJSONオブジェクトに格納されます"/utf8>>}
             }
         }).
 
@@ -76,9 +86,11 @@
                  destroy => on_resource_destroy,
                  params => ?RESOURCE_CONFIG_SPEC,
                  title => #{en => <<"WebHook">>,
-                            zh => <<"WebHook"/utf8>>},
+                            zh => <<"WebHook"/utf8>>,
+                            ja => <<"WebHook"/utf8>>},
                  description => #{en => <<"WebHook">>,
-                                  zh => <<"WebHook"/utf8>>}
+                                  zh => <<"WebHook"/utf8>>,
+                                  ja => <<"WebHook"/utf8>>}
                 }).
 
 -rule_action(#{name => data_to_webserver,
@@ -88,9 +100,11 @@
                params => ?ACTION_DATA_SPEC,
                types => [?RESOURCE_TYPE_WEBHOOK],
                title => #{en => <<"Data to Web Server">>,
-                          zh => <<"发送数据到 Web 服务"/utf8>>},
+                          zh => <<"发送数据到 Web 服务"/utf8>>,
+                          ja => <<"Web サーバにデータを送る"/utf8>>},
                description => #{en => <<"Forward Messages to Web Server">>,
-                                zh => <<"将数据转发给 Web 服务"/utf8>>}
+                                zh => <<"将数据转发给 Web 服务"/utf8>>,
+                                ja => <<"Web サーバにメッセージを転送します"/utf8>>}
               }).
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
