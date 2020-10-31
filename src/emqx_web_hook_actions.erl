@@ -56,8 +56,8 @@
             type => string,
             required => true,
             title => #{en => <<"Resource ID">>,
-                       zh => <<"资源 ID"/utf8>>},
-                       ja => <<"リソース ID"/utf8>>
+                       zh => <<"资源 ID"/utf8>>,
+                       ja => <<"リソース ID"/utf8>>},
             description => #{en => <<"Bind a resource to this action">>,
                              zh => <<"给动作绑定一个资源"/utf8>>,
                              ja => <<"このアクションにリソースを紐付けます"/utf8>>}
