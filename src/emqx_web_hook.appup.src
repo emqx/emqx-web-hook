@@ -1,0 +1,16 @@
+%% -*-: erlang -*-
+
+{"4.2.1",
+  [
+    {"4.2.0", [
+      {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []},
+      {apply, {emqx_rule_engine, load_providers, []}}
+    ]}
+  ],
+  [
+    {"4.2.0", [
+      {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []},
+      {apply, {emqx_rule_engine, load_providers, []}}
+    ]}
+  ]
+}.
