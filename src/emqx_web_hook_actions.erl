@@ -42,7 +42,12 @@
                         title => #{en => <<"Request Method">>,
                                    zh => <<"请求方法"/utf8>>},
                         description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
-                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}}
+                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}},
+            content_type => #{type => string,
+                              enum => [<<"application/json">>,<<"text/plain;charset=UTF-8">>],
+                              default => <<"application/json">>,
+                              title => #{en => <<"Content-Type">>},
+                              description => #{en => <<"Content-Type">>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -139,11 +144,11 @@ on_resource_destroy(_ResId, _Params) ->
 %% An action that forwards publish messages to a remote web server.
 -spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
 on_action_create_data_to_webserver(_Id, Params) ->
-    #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl}
+    #{url := Url, headers := Headers, method := Method, content_type := ContentType, payload_tmpl := PayloadTmpl}
         = parse_action_params(Params),
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     fun(Selected, _Envs) ->
-        http_request(Url, Headers, Method, format_msg(PayloadTks, Selected))
+        http_request(Url, Headers, Method, ContentType, format_msg(PayloadTks, Selected))
     end.
 
 format_msg([], Data) ->
@@ -155,15 +160,15 @@ format_msg(Tokens, Data) ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
-create_req(get, Url, Headers, _) ->
+create_req(get, Url, Headers, _, _) ->
   {(Url), (Headers)};
 
-create_req(_, Url, Headers, Body) ->
-  {(Url), (Headers), "application/json", (Body)}.
+create_req(_, Url, Headers, ContentType, Body) ->
+  {(Url), (Headers), binary_to_list(ContentType), (Body)}.
 
-http_request(Url, Headers, Method, Params) ->
-  logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
-  case do_http_request(Method, create_req(Method, Url, Headers, Params),
+http_request(Url, Headers, Method, ContentType, Params) ->
+  logger:debug("[WebHook Action] ~s to ~s, headers: ~p, content-type: ~p, body: ~p", [Method, Url, Headers, ContentType, Params]),
+  case do_http_request(Method, create_req(Method, Url, Headers, ContentType, Params),
     [{timeout, 5000}], [], 0) of
     {ok, _} -> ok;
     {error, Reason} ->
@@ -185,6 +190,7 @@ parse_action_params(Params = #{<<"url">> := Url}) ->
         #{url => str(Url),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           method => method(maps:get(<<"method">>, Params, <<"POST">>)),
+          content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>)}
     catch _:_ ->
         throw({invalid_params, Params})
