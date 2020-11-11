@@ -22,32 +22,40 @@
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
-            url => #{type => string,
+            url => #{order => 1,
+                     type => string,
                      format => url,
                      required => true,
                      title => #{en => <<"Request URL">>,
                                 zh => <<"请求 URL"/utf8>>},
                      description => #{en => <<"Request URL">>,
                                       zh => <<"请求 URL"/utf8>>}},
-            headers => #{type => object,
-                         schema => #{},
-                         default => #{},
-                         title => #{en => <<"Request Header">>,
-                                    zh => <<"请求头"/utf8>>},
-                         description => #{en => <<"Request Header">>,
-                                          zh => <<"请求头"/utf8>>}},
-            method => #{type => string,
+            method => #{order => 2,
+                        type => string,
                         enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
                         default => <<"POST">>,
                         title => #{en => <<"Request Method">>,
                                    zh => <<"请求方法"/utf8>>},
-                        description => #{en => <<"Request Method. Note that the payload_template will be discarded in case of GET method">>,
-                                         zh => <<"请求方法。注意：当请求方法为 GET 的时候，payload_template 参数会被忽略"/utf8>>}},
-            content_type => #{type => string,
+                        description => #{en => <<"Request Method. \n"
+                                                 "Note that: the Payload Template of Action will be discarded in case of GET method">>,
+                                         zh => <<"请求方法。\n"
+                                                 "注意：当方法为 GET 时，动作中的 '消息内容模板' 参数会被忽略"/utf8>>}},
+            content_type => #{order => 3,
+                              type => string,
                               enum => [<<"application/json">>,<<"text/plain;charset=UTF-8">>],
                               default => <<"application/json">>,
-                              title => #{en => <<"Content-Type">>},
-                              description => #{en => <<"Content-Type">>}}
+                              title => #{en => <<"Content-Type">>,
+                                         zh => <<"Content-Type"/utf8>>},
+                              description => #{en => <<"The Content-Type of HTTP Request">>,
+                                               zh => <<"HTTP 请求头中的 Content-Type 字段值"/utf8>>}},
+            headers => #{order => 4,
+                         type => object,
+                         schema => #{},
+                         default => #{},
+                         title => #{en => <<"Request Header">>,
+                                    zh => <<"请求头"/utf8>>},
+                         description => #{en => <<"The custom HTTP request headers">>,
+                                          zh => <<"自定义的 HTTP 请求头列表"/utf8>>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -62,23 +70,31 @@
 
 -define(ACTION_DATA_SPEC, #{
             '$resource' => ?ACTION_PARAM_RESOURCE,
+            path => #{order => 1,
+                      type => string,
+                      required => false,
+                      default => <<>>,
+                      title => #{en => <<"Path">>,
+                                 zh => <<"Path"/utf8>>},
+                      description => #{en => <<"A path component, variable interpolation from "
+                                               "SQL statement is supported. This value will be "
+                                               "concatenated with Request URL.">>,
+                                       zh => <<"URL 的路径配置，支持使用 ${} 获取规则输出的字段值。\n"
+                                               "例如：${clientid}。该值会与 Request URL 组成一个完整的 URL"/utf8>>}
+                     },
             payload_tmpl => #{
-                order => 1,
+                order => 2,
                 type => string,
                 input => textarea,
                 required => false,
                 default => <<"">>,
                 title => #{en => <<"Payload Template">>,
                            zh => <<"消息内容模板"/utf8>>},
-                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JSON format">>,
-                                 zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
-            },
-            path => #{type => string,
-                      required => false,
-                      default => <<>>,
-                      title => #{en => <<"Path">>,
-                                 zh => <<"Path">>},
-                      description => #{en => <<"A path component, variable interpolation from SQL statement is supported. This value will be concatenated with Request URL.">>}}
+                description => #{en => <<"The payload template, variable interpolation is supported."
+                                         "If using empty template (default), then the payload will "
+                                         "be all the available vars in JSON format">>,
+                                 zh => <<"消息内容模板，支持使用 ${} 获取变量值。"
+                                         "默认消息内容为规则输出的所有字段的 JSON 字符串"/utf8>>}}
             }).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
