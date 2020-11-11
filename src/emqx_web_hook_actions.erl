@@ -70,10 +70,16 @@
                 default => <<"">>,
                 title => #{en => <<"Payload Template">>,
                            zh => <<"消息内容模板"/utf8>>},
-                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JOSN format">>,
+                description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JSON format">>,
                                  zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
-            }
-        }).
+            },
+            path => #{type => string,
+                      required => false,
+                      default => <<>>,
+                      title => #{en => <<"Path">>,
+                                 zh => <<"Path">>},
+                      description => #{en => <<"A path component, variable interpolation from SQL statement is supported. This value will be concatenated with Request URL.">>}}
+            }).
 
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
@@ -144,11 +150,13 @@ on_resource_destroy(_ResId, _Params) ->
 %% An action that forwards publish messages to a remote web server.
 -spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
 on_action_create_data_to_webserver(_Id, Params) ->
-    #{url := Url, headers := Headers, method := Method, content_type := ContentType, payload_tmpl := PayloadTmpl}
+    #{url := Url, headers := Headers, method := Method, content_type := ContentType, payload_tmpl := PayloadTmpl, path := Path}
         = parse_action_params(Params),
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
+    PathTks = emqx_rule_utils:preproc_tmpl(Path),
     fun(Selected, _Envs) ->
-        http_request(Url, Headers, Method, ContentType, format_msg(PayloadTks, Selected))
+        FullUrl = Url ++ emqx_rule_utils:proc_tmpl(PathTks, Selected),
+        http_request(FullUrl, Headers, Method, ContentType, format_msg(PayloadTks, Selected))
     end.
 
 format_msg([], Data) ->
@@ -191,7 +199,8 @@ parse_action_params(Params = #{<<"url">> := Url}) ->
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           method => method(maps:get(<<"method">>, Params, <<"POST">>)),
           content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
-          payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>)}
+          payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
+          path => maps:get(<<"path">>, Params, <<>>)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
