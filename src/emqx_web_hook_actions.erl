@@ -140,12 +140,12 @@ on_resource_destroy(_ResId, _Params) ->
 
 %% An action that forwards publish messages to a remote web server.
 -spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
-on_action_create_data_to_webserver(_Id, Params) ->
+on_action_create_data_to_webserver(Id, Params) ->
     #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl}
         = parse_action_params(Params),
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     fun(Selected, _Envs) ->
-        http_request(Url, Headers, Method, format_msg(PayloadTks, Selected))
+        http_request(Id, Url, Headers, Method, format_msg(PayloadTks, Selected))
     end.
 
 format_msg([], Data) ->
@@ -157,14 +157,15 @@ format_msg(Tokens, Data) ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
-http_request(Url, Headers, Method, Params) ->
+http_request(ActId, Url, Headers, Method, Params) ->
     logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
     case do_http_request(Method, ?JSON_REQ(Url, Headers, Params),
                          [{timeout, 5000}], [], 0) of
-        {ok, _} -> ok;
+        {ok, _} ->
+            emqx_rule_metrics:inc_actions_success(ActId);
         {error, Reason} ->
             logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
-            error({http_request_error, Reason})
+            emqx_rule_metrics:inc_actions_error(ActId)
     end.
 
 do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
