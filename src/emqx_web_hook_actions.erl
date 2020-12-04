@@ -19,6 +19,7 @@
 
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/logger.hrl").
+-include_lib("emqx_rule_engine/include/rule_actions.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
@@ -107,6 +108,7 @@
         ]).
 
 -export([ on_action_create_data_to_webserver/2
+        , on_action_data_to_webserver/2
         ]).
 
 %%------------------------------------------------------------------------------
@@ -144,9 +146,17 @@ on_action_create_data_to_webserver(Id, Params) ->
     #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl}
         = parse_action_params(Params),
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
-    fun(Selected, _Envs) ->
-        http_request(Id, Url, Headers, Method, format_msg(PayloadTks, Selected))
-    end.
+    Params.
+
+on_action_data_to_webserver(Selected, _Envs =
+                            #{?BINDING_KEYS := #{
+                                'Id' := Id,
+                                'Url' := Url,
+                                'Headers' := Headers,
+                                'Method' := Method,
+                                'PayloadTks' := PayloadTks
+                            }}) ->
+    http_request(Id, Url, Headers, Method, format_msg(PayloadTks, Selected)).
 
 format_msg([], Data) ->
     emqx_json:encode(Data);
