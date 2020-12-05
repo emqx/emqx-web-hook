@@ -44,10 +44,10 @@ GitDescribe = case re:run(Branch, "master|^dev/|^hotfix/", [{capture, none}]) of
 
 UrlPrefix = "https://github.com/emqx/",
 
-EMQX_DEP = {emqx, {git, UrlPrefix ++ "emqx", GitDescribe}},
-EMQX_MGMT_DEP = {emqx_management, {git, UrlPrefix ++ "emqx-management", GitDescribe}},
-
-NewDeps = [EMQX_DEP, EMQX_MGMT_DEP | DEPS],
+NewDeps = [{emqx, {git, UrlPrefix ++ "emqx", GitDescribe}},
+           {emqx_management, {git, UrlPrefix ++ "emqx-management", GitDescribe}},
+           {emqx_rule_engine, {git, UrlPrefix ++ "emqx-rule-engine", GitDescribe}}
+          | DEPS],
 
 CONFIG1 = lists:keystore(deps, 1, CONFIG, {deps, NewDeps}),
 
