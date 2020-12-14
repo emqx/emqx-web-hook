@@ -19,7 +19,8 @@
 
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/logger.hrl").
--include_lib("emqx_rule_engine/include/rule_actions.hrl").
+
+-include("emqx_web_hook.hrl").
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
@@ -56,7 +57,88 @@
                          title => #{en => <<"Request Header">>,
                                     zh => <<"请求头"/utf8>>},
                          description => #{en => <<"The custom HTTP request headers">>,
-                                          zh => <<"自定义的 HTTP 请求头列表"/utf8>>}}
+                                          zh => <<"自定义的 HTTP 请求头列表"/utf8>>}},
+            retry_times => #{
+                order => 5,
+                type => number,
+                default => 5,
+                title => #{en => <<"Retry Times">>,
+                        zh => <<"重试次数"/utf8>>},
+                description => #{en => <<"Retry Times">>,
+                                zh => <<"重试次数"/utf8>>}
+            },
+            retry_interval => #{
+                order => 6,
+                type => string,
+                default => <<"1s">>,
+                title => #{en => <<"Retry Interval">>,
+                        zh => <<"重试间隔"/utf8>>},
+                description => #{en => <<"Retry Interval">>,
+                                zh => <<"重试间隔"/utf8>>}
+            },
+            request_timeout => #{
+                order => 7,
+                type => string,
+                default => <<"5s">>,
+                title => #{en => <<"HTTP Request Timeout">>,
+                        zh => <<"HTTP Request Timeout">>},
+                description => #{en => <<"HTTP Request Timeout">>,
+                                zh => <<"HTTP Request Timeout">>}
+            },
+            connect_timeout => #{
+                order => 8,
+                type => string,
+                default => <<"5s">>,
+                title => #{en => <<"HTTP Connect Timeout">>,
+                        zh => <<"HTTP Connect Timeout">>},
+                description => #{en => <<"HTTP Connect Timeout">>,
+                                zh => <<"HTTP Connect Timeout">>}
+            },
+            ssl => #{
+                order => 9,
+                type => boolean,
+                default => false,
+                title => #{en => <<"Enable SSL">>,
+                        zh => <<"开启 SSL"/utf8>>},
+                description => #{en => <<"Enable SSL">>,
+                                zh => <<"是否开启 SSL"/utf8>>}
+            },
+            keyfile => #{
+                order => 10,
+                type => file,
+                default => <<"">>,
+                title => #{en => <<"Key File">>,
+                        zh => <<"私钥文件"/utf8>>},
+                description => #{en => <<"Key File">>,
+                                zh => <<"SSL 私钥文件"/utf8>>}
+            },
+            certfile => #{
+                order => 11,
+                type => file,
+                default => <<"">>,
+                title => #{en => <<"Certificate File">>,
+                        zh => <<"证书文件"/utf8>>},
+                description => #{en => <<"Certificate File">>,
+                                zh => <<"SSL 证书文件"/utf8>>}
+            },
+            cacertfile => #{
+                order => 12,
+                type => file,
+                default => <<"">>,
+                title => #{en => <<"CA Certificate File">>,
+                        zh => <<"CA 证书文件"/utf8>>},
+                description => #{en => <<"CA Certificate File">>,
+                                zh => <<"CA 证书文件"/utf8>>}
+            },
+            pool_size => #{
+                order => 13,
+                type => number,
+                default => 8,
+                title => #{en => <<"Pool Size">>,
+                        zh => <<"连接池大小"/utf8>>},
+                description => #{en => <<"Pool Size for HTTP Server">>,
+                                zh => <<"HTTP Server 连接池大小"/utf8>>}
+            }
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -133,7 +215,6 @@
         ]).
 
 -export([ on_action_create_data_to_webserver/2
-        , on_action_data_to_webserver/2
         ]).
 
 %%------------------------------------------------------------------------------
@@ -141,17 +222,29 @@
 %%------------------------------------------------------------------------------
 
 -spec(on_resource_create(binary(), map()) -> map()).
-on_resource_create(ResId, Conf = #{<<"url">> := Url}) ->
-    case emqx_rule_utils:http_connectivity(Url) of
-        ok -> Conf;
+on_resource_create(ResId, Conf) ->
+    {ok, _} = application:ensure_all_started(ecpool),
+    Options = inet(pool_opts(ResId, Conf)),
+    PoolName = pool_name(ResId),
+    start_resource(ResId, PoolName, Options),
+    #{<<"pool">> => PoolName, options => Options}.
+
+start_resource(ResId, PoolName, Options) ->
+    case ehttpc_pool:start_pool(PoolName, Options) of
+        {ok, _} ->
+            ?LOG(info, "Initiated Resource ~p Successfully, ResId: ~p",
+                 [?RESOURCE_TYPE_WEBHOOK, ResId]);
+        {error, {already_started, _Pid}} ->
+            on_resource_destroy(ResId, #{<<"pool">> => PoolName}),
+            start_resource(ResId, PoolName, Options);
         {error, Reason} ->
             ?LOG(error, "Initiate Resource ~p failed, ResId: ~p, ~0p",
-                [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
-            error({connect_failure, Reason})
+                 [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({{?RESOURCE_TYPE_WEBHOOK, ResId}, create_failed})
     end.
 
 -spec(on_get_resource_status(binary(), map()) -> map()).
-on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
+on_get_resource_status(ResId, #{<<"url">> := Url}) ->
     #{is_alive =>
         case emqx_rule_utils:http_connectivity(Url) of
             ok -> true;
@@ -162,30 +255,40 @@ on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
         end}.
 
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
-on_resource_destroy(_ResId, _Params) ->
-    ok.
+on_resource_destroy(ResId, #{<<"pool">> := PoolName}) ->
+    ?LOG(info, "Destroying Resource ~p, ResId: ~p", [?RESOURCE_TYPE_WEBHOOK, ResId]),
+    case ehttpc_pool:stop_pool(PoolName) of
+        ok ->
+            ?LOG(info, "Destroyed Resource ~p Successfully, ResId: ~p", [?RESOURCE_TYPE_WEBHOOK, ResId]);
+        {error, Reason} ->
+            ?LOG(error, "Destroy Resource ~p failed, ResId: ~p, ~p", [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({{?RESOURCE_TYPE_WEBHOOK, ResId}, destroy_failed})
+    end.
 
 %% An action that forwards publish messages to a remote web server.
 -spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
-on_action_create_data_to_webserver(Id, Params) ->
-    #{url := Url, headers := Headers, method := Method, content_type := ContentType, payload_tmpl := PayloadTmpl, path := Path}
-        = parse_action_params(Params),
-    PathTks = emqx_rule_utils:preproc_tmpl(Path),
+on_action_create_data_to_webserver(_Id, Params) ->
+    #{url := Url,
+      headers := Headers,
+      method := Method,
+      content_type := ContentType,
+      payload_tmpl := PayloadTmpl,
+      path := Path,
+      pool := Pool,
+      request_timeout := RequestTimeout} = parse_action_params(Params),
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
-    Params.
-
-on_action_data_to_webserver(Selected, _Envs =
-                            #{?BINDING_KEYS := #{
-                                'Id' := Id,
-                                'Url' := Url,
-                                'Headers' := Headers,
-                                'Method' := Method,
-                                'ContentType' := ContentType,
-                                'PathTks' := PathTks,
-                                'PayloadTks' := PayloadTks
-                            }}) ->
-    FullUrl = Url ++ emqx_rule_utils:proc_tmpl(PathTks, Selected),
-    http_request(Id, FullUrl, Headers, Method, ContentType, format_msg(PayloadTks, Selected)).
+    PathTks = emqx_rule_utils:preproc_tmpl(Path),
+    fun(Selected, #{clientid := ClientId}) ->
+        Body = format_msg(PayloadTks, Selected),
+        NewUrl = Url ++ emqx_rule_utils:proc_tmpl(PathTks, Selected),
+        Req = create_req(Method, NewUrl, Headers, ContentType, Body),
+        case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req, RequestTimeout) of
+            {ok, _} -> ok;
+            {error, Reason} ->
+                logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
+                error({http_request_error, Reason})
+        end
+    end.
 
 format_msg([], Data) ->
     emqx_json:encode(Data);
@@ -196,40 +299,23 @@ format_msg(Tokens, Data) ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
-create_req(get, Url, Headers, _, _) ->
-  {(Url), (Headers)};
-
-create_req(_, Url, Headers, ContentType, Body) ->
-  {(Url), (Headers), binary_to_list(ContentType), (Body)}.
-
-http_request(ActId, Url, Headers, Method, ContentType, Params) ->
-  logger:debug("[WebHook Action] ~s to ~s, headers: ~p, content-type: ~p, body: ~p", [Method, Url, Headers, ContentType, Params]),
-  case do_http_request(Method, create_req(Method, Url, Headers, ContentType, Params),
-    [{timeout, 5000}], [], 0) of
-    {ok, _} ->
-          emqx_rule_metrics:inc_actions_success(ActId);
-    {error, Reason} ->
-      logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
-      emqx_rule_metrics:inc_actions_error(ActId)
-  end.
-
-do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
-    %% Resend request, when TCP closed by remotely
-    case httpc:request(Method, Req, HTTPOpts, Opts) of
-        {error, socket_closed_remotely} when Times < 3 ->
-            timer:sleep(trunc(math:pow(10, Times))),
-            do_http_request(Method, Req, HTTPOpts, Opts, Times+1);
-        Other -> Other
-    end.
+create_req(Method, Path, Headers, _ContentType, _Body)
+  when Method =:= get orelse Method =:= delete ->
+    {Path, Headers};
+create_req(_, Path, Headers, ContentType, Body) ->
+  {Path, [{"content-type", ContentType} | Headers], Body}.
 
 parse_action_params(Params = #{<<"url">> := Url}) ->
     try
-        #{url => str(Url),
+        #{path := Path} = uri_string:parse(Url),
+        #{url => Path,
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
+          content_type => binary_to_list(maps:get(<<"content_type">>, Params, <<"application/json">>)),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
-          path => maps:get(<<"path">>, Params, <<>>)}
+          path => maps:get(<<"path">>, Params, <<>>),
+          pool => maps:get(<<"pool">>, Params),
+          request_timeout => maps:get(<<"request_timeout">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
@@ -249,3 +335,48 @@ headers(Headers) when is_map(Headers) ->
 str(Str) when is_list(Str) -> Str;
 str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
 str(Bin) when is_binary(Bin) -> binary_to_list(Bin).
+
+pool_opts(ResId, Params) ->
+    URL = maps:get(<<"url">>, Params),
+    #{host := Host0,
+      port := Port} = uri_string:parse(URL),
+    {ok, Host} = inet:parse_address(binary_to_list(Host0)),
+    ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5000),
+    Retry = maps:get(<<"retry_times">>, Params, 5),
+    RetryTimeout = maps:get(<<"retry_interval">>, Params, 1000),
+    PoolSize = maps:get(<<"pool_size">>, Params, 8),
+    [{host, Host},
+     {port, Port},
+     {pool_size, PoolSize},
+     {connect_timeout, ConnectTimeout},
+     {retry, Retry},
+     {retry_timeout, RetryTimeout}] ++ transport_opts(ResId, Params).
+
+transport_opts(ResId, Params) ->
+    SslOptions = ssl_opts(ResId, Params),
+    case SslOptions of
+        [] -> [];
+        _ -> [{transport, ssl},
+              {transport_opts, SslOptions}]
+    end.
+
+ssl_opts(ResId, Params) ->
+    case maps:get(<<"ssl">>, Params, false) of
+        true ->
+            emqx_rule_actions_utils:get_ssl_opts(Params, ResId);
+        _ ->
+            []
+    end.
+
+inet(PoolOpts) ->
+    case proplists:get_value(host, PoolOpts) of
+        Host when tuple_size(Host) =:= 8 ->
+            TransOpts = proplists:get_value(transport_opts, PoolOpts, []),
+            NewPoolOpts = proplists:delete(transport_opts, PoolOpts),
+            [{transport_opts, [inet6 | TransOpts]} | NewPoolOpts];
+        _ ->
+            PoolOpts
+    end.
+
+pool_name(ResId) ->
+    list_to_atom("webhook:" ++ str(ResId)).

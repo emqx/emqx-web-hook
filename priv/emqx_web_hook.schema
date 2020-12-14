@@ -5,24 +5,50 @@
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl", "emqx_web.hook.ssl", [
+%% No longer used
+{mapping, "web.hook.ssl", "emqx_web.hook.pool_opts", [
   {default, off},
   {datatype, flag}
 ]}.
 
-{mapping, "web.hook.ssl.cafile", "emqx_web_hook.ssloptions", [
+{mapping, "web.hook.ssl.cafile", "emqx_web_hook.pool_opts", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.certfile", "emqx_web_hook.ssloptions", [
+{mapping, "web.hook.ssl.certfile", "emqx_web_hook.pool_opts", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.keyfile", "emqx_web_hook.ssloptions", [
+{mapping, "web.hook.ssl.keyfile", "emqx_web_hook.pool_opts", [
   {default, ""},
   {datatype, string}
+]}.
+
+{mapping, "web.hook.request.timeout", "emqx_web_hook.request_timeout", [
+  {default, "5s"},
+  {datatype, [integer, {duration, ms}]}
+]}.
+
+{mapping, "web.hook.pool_size", "emqx_web_hook.pool_opts", [
+  {default, 8},
+  {datatype, integer}
+]}.
+
+{mapping, "web.hook.request.connect_timeout", "emqx_web_hook.pool_opts", [
+  {default, "5s"},
+  {datatype, [integer, {duration, ms}]}
+]}.
+
+{mapping, "web.hook.request.retry_times", "emqx_web_hook.pool_opts", [
+  {default, 5},
+  {datatype, integer}
+]}.
+
+{mapping, "web.hook.request.retry_interval", "emqx_web_hook.pool_opts", [
+  {default, "1s"},
+  {datatype, {duration, ms}}
 ]}.
 
 {mapping, "web.hook.encode_payload", "emqx_web_hook.encode_payload", [
@@ -95,12 +121,27 @@ end}.
 	end, Hooks)
 end}.
 
-{translation, "emqx_web_hook.ssloptions", fun(Conf) ->
-     CA = cuttlefish:conf_get("web.hook.ssl.cafile", Conf),
-     Cert = cuttlefish:conf_get("web.hook.ssl.certfile", Conf),
-     Key = cuttlefish:conf_get("web.hook.ssl.keyfile", Conf),
-     case ((Cert == "") or (Key == "")) of
-          true -> [{cacertfile, CA}];
-          _ -> [{cacertfile, CA}, {certfile, Cert}, {keyfile, Key}]
-     end
+{translation, "emqx_web_hook.pool_opts", fun(Conf) ->
+  Filter = fun(L) -> [{K, V} || {K, V} <- L, V =/= undefined] end,
+  InfinityFun = fun(0) -> infinity;
+                   (Duration) -> Duration
+                end,
+  SslOpts = Filter([{cacertfile, cuttlefish:conf_get("web.hook.ssl.cacertfile", Conf, undefined)},
+                    {certfile, cuttlefish:conf_get("web.hook.ssl.certfile", Conf, undefined)},
+                    {keyfile, cuttlefish:conf_get("web.hook.ssl.keyfile", Conf, undefined)}]),
+  Opts = [{pool_size, cuttlefish:conf_get("web.hook.pool_size", Conf)},
+          {connect_timeout, InfinityFun(cuttlefish:conf_get("web.hook.request.connect_timeout", Conf))},
+          {retry, cuttlefish:conf_get("web.hook.request.retry_times", Conf)},
+          {retry_timeout, cuttlefish:conf_get("web.hook.request.retry_interval", Conf)}],
+  case SslOpts of
+      [] -> Filter(Opts);
+      _  ->
+          TlsVers = ['tlsv1.2','tlsv1.1',tlsv1],
+          DefaultOpts = [{versions, TlsVers},
+                         {ciphers, lists:foldl(
+                                       fun(TlsVer, Ciphers) ->
+                                           Ciphers ++ ssl:cipher_suites(all, TlsVer)
+                                       end, [], TlsVers)}],
+          Filter([{ssl, DefaultOpts ++ SslOpts} | Opts])
+  end
 end}.
