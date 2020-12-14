@@ -5,24 +5,15 @@
   {datatype, string}
 ]}.
 
-%% No longer used
-{mapping, "web.hook.ssl", "emqx_web.hook.pool_opts", [
-  {default, off},
-  {datatype, flag}
-]}.
-
 {mapping, "web.hook.ssl.cafile", "emqx_web_hook.pool_opts", [
-  {default, ""},
   {datatype, string}
 ]}.
 
 {mapping, "web.hook.ssl.certfile", "emqx_web_hook.pool_opts", [
-  {default, ""},
   {datatype, string}
 ]}.
 
 {mapping, "web.hook.ssl.keyfile", "emqx_web_hook.pool_opts", [
-  {default, ""},
   {datatype, string}
 ]}.
 

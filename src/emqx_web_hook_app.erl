@@ -46,11 +46,30 @@ translate_env() ->
     {ok, URL} = application:get_env(?APP, url),
     #{host := Host0,
       port := Port,
-      path := Path} = uri_string:parse(list_to_binary(URL)),
-    {ok, Host} = inet:parse_address(binary_to_list(Host0)),
+      path := Path0} = uri_string:parse(URL),
+    Host = get_addr(Host0),
+    Path = path(Path0),
     application:set_env(?APP, path, Path),
     PoolOpts = application:get_env(?APP, pool_opts, []),
-    application:set_env(?APP, pool_opts, [{host, Host}, {port, Port} | PoolOpts]).
+    application:set_env(?APP, pool_opts, [{host, Host}, {port, Port}, {pool_type, hash} | PoolOpts]).
+
+get_addr(Hostname) ->
+    case inet:parse_address(Hostname) of
+        {ok, {_,_,_,_} = Addr} -> Addr;
+        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+        {error, einval} ->
+            case inet:getaddr(Hostname, inet) of
+                 {error, _} ->
+                     {ok, Addr} = inet:getaddr(Hostname, inet6),
+                     Addr;
+                 {ok, Addr} -> Addr
+            end
+    end.
+
+path("") ->
+    "/";
+path(Path) ->
+    Path.
 
 inet(PoolOpts) ->
     case proplists:get_value(host, PoolOpts) of

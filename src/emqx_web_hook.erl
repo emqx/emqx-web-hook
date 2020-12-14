@@ -328,8 +328,9 @@ send_http_request(ClientID, Params) ->
     Body = emqx_json:encode(Params),
     Timeout = application:get_env(?APP, request_timeout, 5000),
     ?LOG(debug, "Send to: ~0p, params: ~0s", [Path, Body]),
-    case ehttpc:request(ehttpc_pool:pick_worker(?APP, ClientID), {Path, Headers, Body}, Timeout) of
-        {ok, _} -> ok;
+    case ehttpc:request(ehttpc_pool:pick_worker(?APP, ClientID), post, {Path, Headers, Body}, Timeout) of
+        {ok, _, _} -> ok;
+        {ok, _, _, _} -> ok;
         {error, Reason} ->
             ?LOG(error, "HTTP request error: ~p", [Reason]), ok
     end.

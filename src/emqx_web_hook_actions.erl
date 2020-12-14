@@ -69,8 +69,8 @@
             },
             retry_interval => #{
                 order => 6,
-                type => string,
-                default => <<"1s">>,
+                type => number,
+                default => 1000,
                 title => #{en => <<"Retry Interval">>,
                         zh => <<"重试间隔"/utf8>>},
                 description => #{en => <<"Retry Interval">>,
@@ -78,8 +78,8 @@
             },
             request_timeout => #{
                 order => 7,
-                type => string,
-                default => <<"5s">>,
+                type => number,
+                default => 5000,
                 title => #{en => <<"HTTP Request Timeout">>,
                         zh => <<"HTTP Request Timeout">>},
                 description => #{en => <<"HTTP Request Timeout">>,
@@ -87,8 +87,8 @@
             },
             connect_timeout => #{
                 order => 8,
-                type => string,
-                default => <<"5s">>,
+                type => number,
+                default => 5000,
                 title => #{en => <<"HTTP Connect Timeout">>,
                         zh => <<"HTTP Connect Timeout">>},
                 description => #{en => <<"HTTP Connect Timeout">>,
@@ -227,7 +227,7 @@ on_resource_create(ResId, Conf) ->
     Options = inet(pool_opts(ResId, Conf)),
     PoolName = pool_name(ResId),
     start_resource(ResId, PoolName, Options),
-    #{<<"pool">> => PoolName, options => Options}.
+    Conf#{<<"pool">> => PoolName, options => Options}.
 
 start_resource(ResId, PoolName, Options) ->
     case ehttpc_pool:start_pool(PoolName, Options) of
@@ -280,10 +280,11 @@ on_action_create_data_to_webserver(_Id, Params) ->
     PathTks = emqx_rule_utils:preproc_tmpl(Path),
     fun(Selected, #{clientid := ClientId}) ->
         Body = format_msg(PayloadTks, Selected),
-        NewUrl = Url ++ emqx_rule_utils:proc_tmpl(PathTks, Selected),
+        NewUrl = filename:join([binary_to_list(Url), binary_to_list(emqx_rule_utils:proc_tmpl(PathTks, Selected))]),
         Req = create_req(Method, NewUrl, Headers, ContentType, Body),
         case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req, RequestTimeout) of
-            {ok, _} -> ok;
+            {ok, _, _} -> ok;
+            {ok, _, _, _} -> ok;
             {error, Reason} ->
                 logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
                 error({http_request_error, Reason})
@@ -308,7 +309,7 @@ create_req(_, Path, Headers, ContentType, Body) ->
 parse_action_params(Params = #{<<"url">> := Url}) ->
     try
         #{path := Path} = uri_string:parse(Url),
-        #{url => Path,
+        #{url => path(Path),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           method => method(maps:get(<<"method">>, Params, <<"POST">>)),
           content_type => binary_to_list(maps:get(<<"content_type">>, Params, <<"application/json">>)),
@@ -319,6 +320,10 @@ parse_action_params(Params = #{<<"url">> := Url}) ->
     catch _:_ ->
         throw({invalid_params, Params})
     end.
+
+path(<<>>) -> <<"/">>;
+path(<<"">>) -> <<"/">>;
+path(Path) -> Path.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
@@ -340,7 +345,7 @@ pool_opts(ResId, Params) ->
     URL = maps:get(<<"url">>, Params),
     #{host := Host0,
       port := Port} = uri_string:parse(URL),
-    {ok, Host} = inet:parse_address(binary_to_list(Host0)),
+    Host = get_addr(binary_to_list(Host0)),
     ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5000),
     Retry = maps:get(<<"retry_times">>, Params, 5),
     RetryTimeout = maps:get(<<"retry_interval">>, Params, 1000),
@@ -348,9 +353,23 @@ pool_opts(ResId, Params) ->
     [{host, Host},
      {port, Port},
      {pool_size, PoolSize},
+     {pool_type, hash},
      {connect_timeout, ConnectTimeout},
      {retry, Retry},
      {retry_timeout, RetryTimeout}] ++ transport_opts(ResId, Params).
+
+get_addr(Hostname) ->
+    case inet:parse_address(Hostname) of
+        {ok, {_,_,_,_} = Addr} -> Addr;
+        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+        {error, einval} ->
+            case inet:getaddr(Hostname, inet) of
+                 {error, _} ->
+                     {ok, Addr} = inet:getaddr(Hostname, inet6),
+                     Addr;
+                 {ok, Addr} -> Addr
+            end
+    end.
 
 transport_opts(ResId, Params) ->
     SslOptions = ssl_opts(ResId, Params),
