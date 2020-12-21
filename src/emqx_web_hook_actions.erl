@@ -71,8 +71,6 @@
             }
         }).
 
--define(JSON_REQ(URL, HEADERS, BODY), {(URL), (HEADERS), "application/json", (BODY)}).
-
 -resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
                  create => on_resource_create,
                  status => on_get_resource_status,
@@ -116,17 +114,29 @@
 %%------------------------------------------------------------------------------
 
 -spec(on_resource_create(binary(), map()) -> map()).
-on_resource_create(ResId, Conf = #{<<"url">> := Url}) ->
-    case emqx_rule_utils:http_connectivity(Url) of
-        ok -> Conf;
+on_resource_create(ResId, Conf) ->
+    {ok, _} = application:ensure_all_started(ehttpc),
+    Options = pool_opts(Conf),
+    PoolName = pool_name(ResId),
+    start_resource(ResId, PoolName, Options),
+    Conf#{<<"pool">> => PoolName, options => Options}.
+
+start_resource(ResId, PoolName, Options) ->
+    case ehttpc_pool:start_pool(PoolName, Options) of
+        {ok, _} ->
+            ?LOG(info, "Initiated Resource ~p Successfully, ResId: ~p",
+                 [?RESOURCE_TYPE_WEBHOOK, ResId]);
+        {error, {already_started, _Pid}} ->
+            on_resource_destroy(ResId, #{<<"pool">> => PoolName}),
+            start_resource(ResId, PoolName, Options);
         {error, Reason} ->
             ?LOG(error, "Initiate Resource ~p failed, ResId: ~p, ~0p",
-                [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
-            error({connect_failure, Reason})
+                 [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({{?RESOURCE_TYPE_WEBHOOK, ResId}, create_failed})
     end.
 
 -spec(on_get_resource_status(binary(), map()) -> map()).
-on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
+on_get_resource_status(ResId, #{<<"url">> := Url}) ->
     #{is_alive =>
         case emqx_rule_utils:http_connectivity(Url) of
             ok -> true;
@@ -137,26 +147,49 @@ on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
         end}.
 
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
-on_resource_destroy(_ResId, _Params) ->
-    ok.
+on_resource_destroy(ResId, #{<<"pool">> := PoolName}) ->
+    ?LOG(info, "Destroying Resource ~p, ResId: ~p", [?RESOURCE_TYPE_WEBHOOK, ResId]),
+    case ehttpc_pool:stop_pool(PoolName) of
+        ok ->
+            ?LOG(info, "Destroyed Resource ~p Successfully, ResId: ~p", [?RESOURCE_TYPE_WEBHOOK, ResId]);
+        {error, Reason} ->
+            ?LOG(error, "Destroy Resource ~p failed, ResId: ~p, ~p", [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({{?RESOURCE_TYPE_WEBHOOK, ResId}, destroy_failed})
+    end.
 
 %% An action that forwards publish messages to a remote web server.
--spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
+-spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> {bindings(), NewParams :: map()}).
 on_action_create_data_to_webserver(Id, Params) ->
-    #{url := Url, headers := Headers, method := Method, payload_tmpl := PayloadTmpl}
-        = parse_action_params(Params),
-    PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
+    #{method := Method,
+      path := Path,
+      headers := Headers,
+      payload_tmpl := PayloadTmpl,
+      pool := Pool} = parse_action_params(Params),
+    PayloadTokens = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     Params.
 
 on_action_data_to_webserver(Selected, _Envs =
                             #{?BINDING_KEYS := #{
                                 'Id' := Id,
-                                'Url' := Url,
-                                'Headers' := Headers,
                                 'Method' := Method,
-                                'PayloadTks' := PayloadTks
-                            }}) ->
-    http_request(Id, Url, Headers, Method, format_msg(PayloadTks, Selected)).
+                                'Path' := Path,
+                                'Headers' := Headers,
+                                'PayloadTokens' := PayloadTokens,
+                                'Pool' := Pool},
+                              clientid := ClientID}) ->
+    Body = format_msg(PayloadTokens, Selected),
+    Req = create_req(Method, Path, Headers, Body),
+    case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientID), Method, Req) of
+        {ok, _, _} ->
+            emqx_rule_metrics:inc_actions_success(Id),
+            ok;
+        {ok, _, _, _} ->
+            emqx_rule_metrics:inc_actions_success(Id),
+            ok;
+        {error, Reason} ->
+            ?LOG(error, "[WebHook Action] HTTP request error: ~p", [Reason]),
+            emqx_rule_metrics:inc_actions_error(Id)
+    end.
 
 format_msg([], Data) ->
     emqx_json:encode(Data);
@@ -167,35 +200,26 @@ format_msg(Tokens, Data) ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
-http_request(ActId, Url, Headers, Method, Params) ->
-    logger:debug("[WebHook Action] ~s to ~s, headers: ~p, body: ~p", [Method, Url, Headers, Params]),
-    case do_http_request(Method, ?JSON_REQ(Url, Headers, Params),
-                         [{timeout, 5000}], [], 0) of
-        {ok, _} ->
-            emqx_rule_metrics:inc_actions_success(ActId);
-        {error, Reason} ->
-            logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
-            emqx_rule_metrics:inc_actions_error(ActId)
-    end.
+create_req(Method, Path, Headers, _Body)
+  when Method =:= get orelse Method =:= delete ->
+    {Path, Headers};
+create_req(_, Path, Headers, Body) ->
+  {Path, Headers, Body}.
 
-do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
-    %% Resend request, when TCP closed by remotely
-    case httpc:request(Method, Req, HTTPOpts, Opts) of
-        {error, socket_closed_remotely} when Times < 3 ->
-            timer:sleep(trunc(math:pow(10, Times))),
-            do_http_request(Method, Req, HTTPOpts, Opts, Times+1);
-        Other -> Other
-    end.
-
-parse_action_params(Params = #{<<"url">> := Url}) ->
+parse_action_params(Params = #{<<"url">> := URL}) ->
     try
-        #{url => str(Url),
+        #{path := Path} = uri_string:parse(add_default_scheme(URL)),
+        #{method => method(maps:get(<<"method">>, Params, <<"POST">>)),
+          path => path(Path),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
-          method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>)}
+          payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
+          pool => maps:get(<<"pool">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
+
+path(<<>>) -> <<"/">>;
+path(Path) -> Path.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
@@ -212,3 +236,44 @@ headers(Headers) when is_map(Headers) ->
 str(Str) when is_list(Str) -> Str;
 str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
 str(Bin) when is_binary(Bin) -> binary_to_list(Bin).
+
+add_default_scheme(<<"http://", _/binary>> = URL) ->
+    URL;
+add_default_scheme(<<"https://", _/binary>> = URL) ->
+    URL;
+add_default_scheme(URL) ->
+    <<"http://", URL/binary>>.
+
+pool_opts(Params = #{<<"url">> := URL}) ->
+    #{host := Host0,
+      port := Port} = uri_string:parse(add_default_scheme(URL)),
+    Host = get_addr(binary_to_list(Host0)),
+    PoolSize = maps:get(<<"pool_size">>, Params, 8),
+    TransportOpts = case tuple_size(Host) =:= 8 of
+                        true -> [inet6];
+                        false -> []
+                    end,
+    [{host, Host},
+     {port, Port},
+     {pool_size, PoolSize},
+     {pool_type, hash},
+     {connect_timeout, 5000},
+     {retry, 5},
+     {retry_timeout, 1000},
+     {transport_opts, TransportOpts}].
+
+get_addr(Hostname) ->
+    case inet:parse_address(Hostname) of
+        {ok, {_,_,_,_} = Addr} -> Addr;
+        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+        {error, einval} ->
+            case inet:getaddr(Hostname, inet) of
+                 {error, _} ->
+                     {ok, Addr} = inet:getaddr(Hostname, inet6),
+                     Addr;
+                 {ok, Addr} -> Addr
+            end
+    end.
+
+pool_name(ResId) ->
+    list_to_atom("webhook:" ++ str(ResId)).
