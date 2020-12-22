@@ -17,13 +17,13 @@ jobs:
                 make dialyzer
             - name: run test cases
               run: |
-                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib && rm -rf /emqx_auth_http/_build/default/lib/gun
+                rm -rf /emqx_web_hook/rebar.lock && rm -rf /emqx_web_hook/_build/default/lib/cowlib && rm -rf /emqx_web_hook/_build/default/lib/gun
                 make eunit 
-                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib && rm -rf /emqx_auth_http/_build/default/lib/gun
+                rm -rf /emqx_web_hook/rebar.lock && rm -rf /emqx_web_hook/_build/default/lib/cowlib && rm -rf /emqx_web_hook/_build/default/lib/gun
                 make ct
-                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib && rm -rf /emqx_auth_http/_build/default/lib/gun
+                rm -rf /emqx_web_hook/rebar.lock && rm -rf /emqx_web_hook/_build/default/lib/cowlib && rm -rf /emqx_web_hook/_build/default/lib/gun
                 make proper
-                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib && rm -rf /emqx_auth_http/_build/default/lib/gun
+                rm -rf /emqx_web_hook/rebar.lock && rm -rf /emqx_web_hook/_build/default/lib/cowlib && rm -rf /emqx_web_hook/_build/default/lib/gun
                 make cover
             - uses: actions/upload-artifact@v1
               if: always()
