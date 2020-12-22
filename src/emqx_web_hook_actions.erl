@@ -96,8 +96,6 @@
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
 
--type(url() :: binary()).
-
 -export_type([action_fun/0]).
 
 -export([ on_resource_create/2
@@ -158,7 +156,7 @@ on_resource_destroy(ResId, #{<<"pool">> := PoolName}) ->
     end.
 
 %% An action that forwards publish messages to a remote web server.
--spec(on_action_create_data_to_webserver(Id::binary(), #{}) -> fun((Msg :: map()) -> any())).
+-spec on_action_create_data_to_webserver(binary(), map()) -> {[{atom(), term()}], map()}.
 on_action_create_data_to_webserver(Id, Params) ->
     #{method := Method,
       path := Path,
