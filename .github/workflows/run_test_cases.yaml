@@ -17,9 +17,13 @@ jobs:
                 make dialyzer
             - name: run test cases
               run: |
-                make eunit  
+                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib
+                make eunit 
+                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib
                 make ct
+                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib
                 make proper
+                rm -rf /emqx_auth_http/rebar.lock && rm -rf /emqx_auth_http/_build/default/lib/cowlib
                 make cover
             - uses: actions/upload-artifact@v1
               if: always()
