@@ -9,10 +9,10 @@ all: compile
 compile:
 	$(REBAR) compile
 
-ct: compile
+ct:
 	$(REBAR) as test ct -v
 
-eunit: compile
+eunit:
 	$(REBAR) as test eunit
 
 dialyzer:
