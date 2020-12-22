@@ -17,9 +17,13 @@ jobs:
                 make dialyzer
             - name: run test cases
               run: |
-                make eunit  
+                rm -rf rebar.lock && rm -rf _build/default/lib/cowlib && rm -rf _build/default/lib/gun
+                make eunit 
+                rm -rf rebar.lock && rm -rf _build/default/lib/cowlib && rm -rf _build/default/lib/gun 
                 make ct
+                rm -rf rebar.lock && rm -rf _build/default/lib/cowlib && rm -rf _build/default/lib/gun
                 make proper
+                rm -rf rebar.lock && rm -rf _build/default/lib/cowlib && rm -rf _build/default/lib/gun
                 make cover
             - uses: actions/upload-artifact@v1
               if: always()
