@@ -96,8 +96,6 @@
 
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
 
--type(url() :: binary()).
-
 -export_type([action_fun/0]).
 
 -export([ on_resource_create/2
