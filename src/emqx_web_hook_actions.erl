@@ -188,6 +188,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
     #{method := Method,
       path := Path,
       headers := Headers,
+      method_timeout := Timeout,
       content_type := ContentType,
       payload_tmpl := PayloadTmpl,
       pool := Pool} = parse_action_params(Params),
@@ -198,11 +199,10 @@ on_action_create_data_to_webserver(_Id, Params) ->
         Body = format_msg(PayloadTks, Selected),
         NPath = emqx_rule_utils:proc_tmpl(PathTks, Selected),
         Req = create_req(Method, NPath, NHeaders, Body),
-        case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req) of
-            {ok, _, _} ->
-                ok;
-            {ok, _, _, _} ->
-                ok;
+        Worker = ehttpc_pool:pick_worker(Pool, ClientId),
+        case ehttpc:simple_request(Worker, Method, Req, Timeout) of
+        %case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req) of
+            {ok, _Resp} -> ok;
             {error, Reason} ->
                 ?LOG(error, "[WebHook Action] HTTP request error: ~p", [Reason])
         end
@@ -225,8 +225,10 @@ create_req(_, Path, Headers, Body) ->
 
 parse_action_params(Params = #{<<"url">> := URL}) ->
     try
+        MethodTimeout = maps:get(<<"method_timeout">>, Params, 30),
         #{path := CommonPath} = uri_string:parse(add_default_scheme(URL)),
         #{method => method(maps:get(<<"method">>, Params, <<"POST">>)),
+          method_timeout => timer:seconds(MethodTimeout),
           path => path(filename:join(CommonPath, maps:get(<<"path">>, Params, <<>>))),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
@@ -266,7 +268,8 @@ pool_opts(Params = #{<<"url">> := URL}) ->
     #{host := Host0,
       port := Port} = uri_string:parse(add_default_scheme(URL)),
     Host = get_addr(binary_to_list(Host0)),
-    PoolSize = maps:get(<<"pool_size">>, Params, 8),
+    PoolSize = maps:get(<<"pool_size">>, Params, 64),
+    ConnTimeout = maps:get(<<"connect_timeout">>, Params, 15),
     TransportOpts = case tuple_size(Host) =:= 8 of
                         true -> [inet6];
                         false -> []
@@ -275,9 +278,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
-     {connect_timeout, 5000},
-     {retry, 5},
-     {retry_timeout, 1000},
+     {connect_timeout, timer:seconds(ConnTimeout)},
      {transport_opts, TransportOpts}].
 
 get_addr(Hostname) ->
