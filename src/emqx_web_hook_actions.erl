@@ -43,7 +43,25 @@
                         title => #{en => <<"Request Method">>,
                                    zh => <<"请求方法"/utf8>>},
                         description => #{en => <<"Request Method">>,
-                                         zh => <<"请求方法"/utf8>>}}
+                                         zh => <<"请求方法"/utf8>>}},
+            connect_timeout => #{type => number,
+                                 default => 5000,
+                                 title => #{en => <<"Connect Timeout">>,
+                                            zh => <<"连接超时时间"/utf8>>},
+                                 description => #{en => <<"Connect Timeout">>,
+                                                  zh => <<"连接超时时间"/utf8>>}},
+            request_timeout => #{type => number,
+                                 default => 5000,
+                                 title => #{en => <<"Request Timeout">>,
+                                            zh => <<"请求超时时间时间"/utf8>>},
+                                 description => #{en => <<"Request Timeout">>,
+                                                  zh => <<"请求超时时间"/utf8>>}},
+            pool_size => #{type => number,
+                           default => 32,
+                           title => #{en => <<"Pool Size">>,
+                                      zh => <<"池大小"/utf8>>},
+                           description => #{en => <<"Connection process pool size">>,
+                                            zh => <<"连接进程池大小"/utf8>>}}                                 
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -162,6 +180,7 @@ on_action_create_data_to_webserver(Id, Params) ->
       path := Path,
       headers := Headers,
       payload_tmpl := PayloadTmpl,
+      request_timeout := RequestTimeout,
       pool := Pool} = parse_action_params(Params),
     PayloadTokens = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     Params.
@@ -173,11 +192,12 @@ on_action_data_to_webserver(Selected, _Envs =
                                 'Path' := Path,
                                 'Headers' := Headers,
                                 'PayloadTokens' := PayloadTokens,
+                                'RequestTimeout' := RequestTimeout,
                                 'Pool' := Pool},
                               clientid := ClientID}) ->
     Body = format_msg(PayloadTokens, Selected),
     Req = create_req(Method, Path, Headers, Body),
-    case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientID), Method, Req) of
+    case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientID), Method, Req, RequestTimeout) of
         {ok, _, _} ->
             emqx_rule_metrics:inc_actions_success(Id),
             ok;
@@ -211,6 +231,7 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
           path => path(Path),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
+          request_timeout => maps:get(<<"request_timeout">>, Params, 5000),
           pool => maps:get(<<"pool">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
@@ -246,7 +267,8 @@ pool_opts(Params = #{<<"url">> := URL}) ->
     #{host := Host0,
       port := Port} = uri_string:parse(add_default_scheme(URL)),
     Host = get_addr(binary_to_list(Host0)),
-    PoolSize = maps:get(<<"pool_size">>, Params, 8),
+    PoolSize = maps:get(<<"pool_size">>, Params, 32),
+    ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5000),
     TransportOpts = case tuple_size(Host) =:= 8 of
                         true -> [inet6];
                         false -> []
@@ -255,7 +277,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
-     {connect_timeout, 5000},
+     {connect_timeout, ConnectTimeout},
      {retry, 5},
      {retry_timeout, 1000},
      {transport_opts, TransportOpts}].
