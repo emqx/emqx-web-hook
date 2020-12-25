@@ -232,10 +232,10 @@ on_action_data_to_webserver(Selected, _Envs =
     Body = format_msg(PayloadTokens, Selected),
     Req = create_req(Method, Path, Headers, Body),
     case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientID), Method, Req, RequestTimeout) of
-        {ok, StatusCode, _} when StatusCode >= 200 andalso StateCode < 300 ->
+        {ok, StatusCode, _} when StatusCode >= 200 andalso StatusCode < 300 ->
             emqx_rule_metrics:inc_actions_success(Id),
             ok;
-        {ok, StatusCode, _, _} when StatusCode >= 200 andalso StateCode < 300 ->
+        {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
             emqx_rule_metrics:inc_actions_success(Id),
             ok;
         {ok, StatusCode, _} ->
