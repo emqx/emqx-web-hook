@@ -49,25 +49,25 @@
                                           zh => <<"请求头"/utf8>>}},
             connect_timeout => #{order => 4,
                                  type => number,
-                                 default => 5000,
+                                 default => 5,
                                  title => #{en => <<"Connect Timeout">>,
                                             zh => <<"连接超时时间"/utf8>>},
-                                 description => #{en => <<"Connect Timeout">>,
-                                                  zh => <<"连接超时时间"/utf8>>}},
+                                 description => #{en => <<"Connect Timeout In Seconds">>,
+                                                  zh => <<"连接超时时间，单位秒"/utf8>>}},
             request_timeout => #{order => 5,
                                  type => number,
-                                 default => 5000,
+                                 default => 5,
                                  title => #{en => <<"Request Timeout">>,
                                             zh => <<"请求超时时间时间"/utf8>>},
-                                 description => #{en => <<"Request Timeout">>,
-                                                  zh => <<"请求超时时间"/utf8>>}},
+                                 description => #{en => <<"Request Timeout In Seconds">>,
+                                                  zh => <<"请求超时时间，单位秒"/utf8>>}},
             pool_size => #{order => 6,
                            type => number,
                            default => 32,
                            title => #{en => <<"Pool Size">>,
                                       zh => <<"池大小"/utf8>>},
                            description => #{en => <<"Connection process pool size">>,
-                                            zh => <<"连接进程池大小"/utf8>>}}                                 
+                                            zh => <<"连接进程池大小"/utf8>>}}
         }).
 
 -define(ACTION_PARAM_RESOURCE, #{
@@ -237,7 +237,7 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
           path => path(Path),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
-          request_timeout => maps:get(<<"request_timeout">>, Params, 5000),
+          request_timeout => timer:seconds(maps:get(<<"request_timeout">>, Params, 5)),
           pool => maps:get(<<"pool">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
@@ -274,7 +274,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
       port := Port} = uri_string:parse(add_default_scheme(URL)),
     Host = get_addr(binary_to_list(Host0)),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
-    ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5000),
+    ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
     TransportOpts = case tuple_size(Host) =:= 8 of
                         true -> [inet6];
                         false -> []
@@ -283,7 +283,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
-     {connect_timeout, ConnectTimeout},
+     {connect_timeout, timer:seconds(ConnectTimeout)},
      {retry, 5},
      {retry_timeout, 1000},
      {transport_opts, TransportOpts}].
