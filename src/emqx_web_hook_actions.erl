@@ -22,15 +22,7 @@
 
 -define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
 -define(RESOURCE_CONFIG_SPEC, #{
-            url => #{order => 1,
-                     type => string,
-                     format => url,
-                     required => true,
-                     title => #{en => <<"Request URL">>,
-                                zh => <<"请求 URL"/utf8>>},
-                     description => #{en => <<"Request URL">>,
-                                      zh => <<"请求 URL"/utf8>>}},
-            method => #{order => 2,
+            method => #{order => 1,
                         type => string,
                         enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
                         default => <<"POST">>,
@@ -40,7 +32,36 @@
                                                  "Note that: the Payload Template of Action will be discarded in case of GET method">>,
                                          zh => <<"请求方法。\n"
                                                  "注意：当方法为 GET 时，动作中的 '消息内容模板' 参数会被忽略"/utf8>>}},
-            content_type => #{order => 3,
+            url => #{order => 2,
+                     type => string,
+                     format => url,
+                     required => true,
+                     title => #{en => <<"Request URL">>,
+                                zh => <<"请求 URL"/utf8>>},
+                     description => #{en => <<"Request URL">>,
+                                      zh => <<"请求 URL"/utf8>>}},
+            connect_timeout => #{order => 3,
+                                  type => number,
+                                  default => 5,
+                                  title => #{en => <<"Connect Timeout">>,
+                                             zh => <<"连接超时时间"/utf8>>},
+                                  description => #{en => <<"Connect Timeout In Seconds">>,
+                                                   zh => <<"连接超时时间，单位秒"/utf8>>}},
+            request_timeout => #{order => 4,
+                                 type => number,
+                                 default => 5,
+                                 title => #{en => <<"Request Timeout">>,
+                                            zh => <<"请求超时时间时间"/utf8>>},
+                                 description => #{en => <<"Request Timeout In Seconds">>,
+                                                   zh => <<"请求超时时间，单位秒"/utf8>>}},
+            pool_size => #{order => 5,
+                           type => number,
+                           default => 32,
+                           title => #{en => <<"Pool Size">>,
+                                      zh => <<"池大小"/utf8>>},
+                           description => #{en => <<"Connection process pool size">>,
+                                             zh => <<"连接进程池大小"/utf8>>}},
+            content_type => #{order => 6,
                               type => string,
                               enum => [<<"application/json">>,<<"text/plain;charset=UTF-8">>],
                               default => <<"application/json">>,
@@ -48,7 +69,7 @@
                                          zh => <<"Content-Type"/utf8>>},
                               description => #{en => <<"The Content-Type of HTTP Request">>,
                                                zh => <<"HTTP 请求头中的 Content-Type 字段值"/utf8>>}},
-            headers => #{order => 4,
+            headers => #{order => 7,
                          type => object,
                          schema => #{},
                          default => #{},
@@ -190,6 +211,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
       headers := Headers,
       content_type := ContentType,
       payload_tmpl := PayloadTmpl,
+      request_timeout := RequestTimeout,
       pool := Pool} = parse_action_params(Params),
     NHeaders = [{<<"content-type">>, ContentType} | Headers],
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
@@ -198,7 +220,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
         Body = format_msg(PayloadTks, Selected),
         NPath = emqx_rule_utils:proc_tmpl(PathTks, Selected),
         Req = create_req(Method, NPath, NHeaders, Body),
-        case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req) of
+        case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req, RequestTimeout) of
             {ok, _, _} ->
                 ok;
             {ok, _, _, _} ->
@@ -231,6 +253,7 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
+          request_timeout => timer:seconds(maps:get(<<"request_timeout">>, Params, 5)),
           pool => maps:get(<<"pool">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
@@ -266,7 +289,8 @@ pool_opts(Params = #{<<"url">> := URL}) ->
     #{host := Host0,
       port := Port} = uri_string:parse(add_default_scheme(URL)),
     Host = get_addr(binary_to_list(Host0)),
-    PoolSize = maps:get(<<"pool_size">>, Params, 8),
+    PoolSize = maps:get(<<"pool_size">>, Params, 32),
+    ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
     TransportOpts = case tuple_size(Host) =:= 8 of
                         true -> [inet6];
                         false -> []
@@ -275,7 +299,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
-     {connect_timeout, 5000},
+     {connect_timeout, timer:seconds(ConnectTimeout)},
      {retry, 5},
      {retry_timeout, 1000},
      {transport_opts, TransportOpts}].
