@@ -221,9 +221,15 @@ on_action_create_data_to_webserver(_Id, Params) ->
         NPath = emqx_rule_utils:proc_tmpl(PathTks, Selected),
         Req = create_req(Method, NPath, NHeaders, Body),
         case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req, RequestTimeout) of
-            {ok, _, _} ->
+            {ok, StatusCode, _} when StatusCode >= 200 andalso StatusCode < 300 ->
                 ok;
-            {ok, _, _, _} ->
+            {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
+                ok;
+            {ok, StatusCode, _} ->
+                ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
+                ok;
+            {ok, StatusCode, _, _} ->
+                ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
                 ok;
             {error, Reason} ->
                 ?LOG(error, "[WebHook Action] HTTP request error: ~p", [Reason])
