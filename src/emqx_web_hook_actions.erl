@@ -61,19 +61,19 @@
                  description => #{en => <<"Request Header">>,
                                   zh => <<"请求头"/utf8>>}},
     connect_timeout => #{order => 4,
-                         type => number,
-                         default => 5,
+                         type => string,
+                         default => <<"5s">>,
                          title => #{en => <<"Connect Timeout">>,
                                     zh => <<"连接超时时间"/utf8>>},
                          description => #{en => <<"Connect Timeout In Seconds">>,
-                                          zh => <<"连接超时时间，单位秒"/utf8>>}},
+                                          zh => <<"连接超时时间"/utf8>>}},
     request_timeout => #{order => 5,
-                         type => number,
-                         default => 5,
+                         type => string,
+                         default => <<"5s">>,
                          title => #{en => <<"Request Timeout">>,
                                     zh => <<"请求超时时间时间"/utf8>>},
                          description => #{en => <<"Request Timeout In Seconds">>,
-                                          zh => <<"请求超时时间，单位秒"/utf8>>}},
+                                          zh => <<"请求超时时间"/utf8>>}},
     pool_size => #{order => 6,
                    type => number,
                    default => 8,
@@ -273,7 +273,7 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
           path => path(Path),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
-          request_timeout => timer:seconds(maps:get(<<"request_timeout">>, Params, 5)),
+          request_timeout => cuttlefish_duration:parse(str(maps:get(<<"request_timeout">>, Params, <<"5s">>))),
           pool => maps:get(<<"pool">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
@@ -310,7 +310,7 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
       port := Port} = uri_string:parse(add_default_scheme(URL)),
     Host = get_addr(binary_to_list(Host0)),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
-    ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
+    ConnectTimeout = cuttlefish_duration:parse(str(maps:get(<<"connect_timeout">>, Params, <<"5s">>))),
     TransportOpts = case tuple_size(Host) =:= 8 of
                         true -> [inet6];
                         false -> []
@@ -320,7 +320,7 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
-     {connect_timeout, timer:seconds(ConnectTimeout)},
+     {connect_timeout, ConnectTimeout},
      {retry, 5},
      {retry_timeout, 1000},
      {transport_opts, TransportOpts ++ SslOpts}].
