@@ -99,19 +99,6 @@ translate_env() ->
     NHeaders = set_content_type(Headers),
     application:set_env(?APP, headers, NHeaders).
 
-get_addr(Hostname) ->
-    case inet:parse_address(Hostname) of
-        {ok, {_,_,_,_} = Addr} -> Addr;
-        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
-        {error, einval} ->
-            case inet:getaddr(Hostname, inet) of
-                 {error, _} ->
-                     {ok, Addr} = inet:getaddr(Hostname, inet6),
-                     Addr;
-                 {ok, Addr} -> Addr
-            end
-    end.
-
 path("") ->
     "/";
 path(Path) ->
