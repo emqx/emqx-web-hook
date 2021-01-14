@@ -2,12 +2,18 @@
 
 {VSN,
   [
+    {<<"4.2.5">>, [
+      {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []}
+    ]},
     {<<"4.2.[0-4]">>, [
       {restart_application, emqx_web_hook}
     ]},
     {<<".*">>, []}
   ],
   [
+    {<<"4.2.5">>, [
+      {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []}
+    ]},
     {<<"4.2.[0-4]">>, [
       {restart_application, emqx_web_hook}
     ]},
