@@ -51,9 +51,12 @@ add_default_scheme(URL) ->
 translate_env() ->
     {ok, URL} = application:get_env(?APP, url),
     #{host := Host0,
-      port := Port,
       path := Path0,
-      scheme := Scheme} = uri_string:parse(binary_to_list(add_default_scheme(URL))),
+      scheme := Scheme} = URIMap = uri_string:parse(binary_to_list(add_default_scheme(URL))),
+    Port = maps:get(port, URIMap, case Scheme of
+                                      "https" -> 443;
+                                      _ -> 80
+                                  end),
     Host = get_addr(Host0),
     Path = path(Path0),
     PoolSize = application:get_env(?APP, pool_size, 8),
