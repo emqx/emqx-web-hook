@@ -2,13 +2,13 @@
 
 {VSN,
   [
-    {<<"4.2.[0-4]">>, [
+    {<<"4.2.[0-5]">>, [
       {restart_application, emqx_web_hook}
     ]},
     {<<".*">>, []}
   ],
   [
-    {<<"4.2.[0-4]">>, [
+    {<<"4.2.[0-5]">>, [
       {restart_application, emqx_web_hook}
     ]},
     {<<".*">>, []}

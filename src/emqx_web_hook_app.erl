@@ -50,20 +50,20 @@ add_default_scheme(URL) ->
 
 translate_env() ->
     {ok, URL} = application:get_env(?APP, url),
-    #{host := Host0,
+    #{host := Host,
       port := Port,
       path := Path0,
       scheme := Scheme} = uri_string:parse(binary_to_list(add_default_scheme(URL))),
     Host = get_addr(Host0),
     Path = path(Path0),
     PoolSize = application:get_env(?APP, pool_size, 8),
-    IPv6 = case tuple_size(Host) =:= 8 of
-               true -> [inet6];
-               false -> []
+    IPv6 = case inet:getaddr(Host, inet6) of
+               {error, _} -> inet;
+               {ok, _} -> inet6
            end,
     MoreOpts = case Scheme of
                    "http" ->
-                       [{transport_opts, IPv6}];
+                       [{transport_opts, [IPv6]}];
                    "https" ->
                        CACertFile = application:get_env(?APP, cafile, undefined),
                        CertFile = application:get_env(?APP, certfile, undefined),
@@ -84,7 +84,7 @@ translate_env() ->
                                    {ciphers, lists:foldl(fun(TlsVer, Ciphers) ->
                                                                Ciphers ++ ssl:cipher_suites(all, TlsVer)
                                                            end, [], TlsVers)} | TLSOpts],
-                       [{transport, ssl}, {transport_opts, NTLSOpts ++ IPv6}]
+                       [{transport, ssl}, {transport_opts, [IPv6 | NTLSOpts]}]
                 end,
     PoolOpts = [{host, Host},
                 {port, Port},
