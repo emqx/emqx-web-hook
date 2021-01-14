@@ -292,8 +292,8 @@ add_default_scheme(URL) ->
     <<"http://", URL/binary>>.
 
 pool_opts(Params = #{<<"url">> := URL}) ->
-    #{host := Host0,
-      port := Port} = uri_string:parse(add_default_scheme(URL)),
+    #{host := Host0} = URIMap = uri_string:parse(add_default_scheme(URL)),
+    Port = maps:get(port, URIMap, 80),
     Host = get_addr(binary_to_list(Host0)),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
