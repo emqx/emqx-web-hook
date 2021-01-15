@@ -213,7 +213,10 @@ on_action_create_data_to_webserver(_Id, Params) ->
       payload_tmpl := PayloadTmpl,
       request_timeout := RequestTimeout,
       pool := Pool} = parse_action_params(Params),
-    NHeaders = [{<<"content-type">>, ContentType} | Headers],
+    NHeaders = case Method =:= post orelse Method =:= put of
+        true  -> [{<<"content-type">>, ContentType} | Headers];
+        _ -> Headers
+    end,
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     PathTks = emqx_rule_utils:preproc_tmpl(Path),
     fun(Selected, _Envs = #{clientid := ClientId}) ->
