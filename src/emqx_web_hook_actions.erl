@@ -306,9 +306,9 @@ add_default_scheme(URL) ->
     <<"http://", URL/binary>>.
 
 pool_opts(Params = #{<<"url">> := URL}, ResId) ->
-    #{host := Host0, scheme := Scheme} = URIMap = uri_string:parse(add_default_scheme(URL)),
+    #{host := Host0, scheme := Scheme} = URIMap = uri_string:parse(binary_to_list(add_default_scheme(URL))),
     Port = maps:get(port, URIMap, case Scheme of
-                                      <<"https">> -> 443;
+                                      "https" -> 443;
                                       _ -> 80
                                   end),
     Host = case inet:parse_address(Host0) of
