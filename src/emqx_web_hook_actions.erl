@@ -213,10 +213,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
       payload_tmpl := PayloadTmpl,
       request_timeout := RequestTimeout,
       pool := Pool} = parse_action_params(Params),
-    NHeaders = case Method =:= post orelse Method =:= put of
-        true  -> [{<<"content-type">>, ContentType} | Headers];
-        _ -> Headers
-    end,
+    NHeaders = [{<<"content-type">>, ContentType} | Headers],
     PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     PathTks = emqx_rule_utils:preproc_tmpl(Path),
     fun(Selected, _Envs = #{clientid := ClientId}) ->
@@ -295,27 +292,15 @@ add_default_scheme(URL) ->
     <<"http://", URL/binary>>.
 
 pool_opts(Params = #{<<"url">> := URL}) ->
-    #{host := Host0, scheme := Scheme} = URIMap = uri_string:parse(binary_to_list(add_default_scheme(URL))),
-    Port = maps:get(port, URIMap, case Scheme of
-                                      "https" -> 443;
-                                      _ -> 80
-                                  end),
+    #{host := Host0,
+      port := Port} = uri_string:parse(add_default_scheme(URL)),
+    Host = get_addr(binary_to_list(Host0)),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
-    Host = case inet:parse_address(Host0) of
-                       {ok, {_,_,_,_} = Addr} -> Addr;
-                       {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
-                       {error, einval} -> Host0
-                   end,
-    Inet = case Host of
-               {_,_,_,_} -> inet;
-               {_,_,_,_,_,_,_,_} -> inet6;
-               _ ->
-                   case inet:getaddr(Host, inet6) of
-                       {error, _} -> inet;
-                       {ok, _} -> inet6
-                   end
-           end,
+    TransportOpts = case tuple_size(Host) =:= 8 of
+                        true -> [inet6];
+                        false -> []
+                    end,
     [{host, Host},
      {port, Port},
      {pool_size, PoolSize},
@@ -323,7 +308,20 @@ pool_opts(Params = #{<<"url">> := URL}) ->
      {connect_timeout, timer:seconds(ConnectTimeout)},
      {retry, 5},
      {retry_timeout, 1000},
-     {transport_opts, [Inet]}].
+     {transport_opts, TransportOpts}].
+
+get_addr(Hostname) ->
+    case inet:parse_address(Hostname) of
+        {ok, {_,_,_,_} = Addr} -> Addr;
+        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+        {error, einval} ->
+            case inet:getaddr(Hostname, inet) of
+                 {error, _} ->
+                     {ok, Addr} = inet:getaddr(Hostname, inet6),
+                     Addr;
+                 {ok, Addr} -> Addr
+            end
+    end.
 
 pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).

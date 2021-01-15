@@ -5,18 +5,22 @@
   {datatype, string}
 ]}.
 
+{mapping, "web.hook.ssl", "emqx_web.hook.ssl", [
+  {default, off},
+  {datatype, flag}
+]}.
 
-{mapping, "web.hook.ssl.cafile", "emqx_web_hook.cafile", [
+{mapping, "web.hook.ssl.cafile", "emqx_web_hook.ssloptions", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.certfile", "emqx_web_hook.certfile", [
+{mapping, "web.hook.ssl.certfile", "emqx_web_hook.ssloptions", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.keyfile", "emqx_web_hook.keyfile", [
+{mapping, "web.hook.ssl.keyfile", "emqx_web_hook.ssloptions", [
   {default, ""},
   {datatype, string}
 ]}.
@@ -27,7 +31,7 @@
 ]}.
 
 {mapping, "web.hook.ssl.verify", "emqx_web_hook.verify", [
-  {default, false},
+  {default, true},
   {datatype, {enum, [true, false]}}
 ]}.
 
