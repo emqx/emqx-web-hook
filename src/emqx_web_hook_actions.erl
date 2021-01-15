@@ -306,15 +306,27 @@ add_default_scheme(URL) ->
     <<"http://", URL/binary>>.
 
 pool_opts(Params = #{<<"url">> := URL}, ResId) ->
-    #{host := Host0,
-      port := Port} = uri_string:parse(add_default_scheme(URL)),
-    Host = get_addr(binary_to_list(Host0)),
+    #{host := Host0, scheme := Scheme} = URIMap = uri_string:parse(add_default_scheme(URL)),
+    Port = maps:get(port, URIMap, case Scheme of
+                                      <<"https">> -> 443;
+                                      _ -> 80
+                                  end),
+    Host = case inet:parse_address(Host0) of
+                       {ok, {_,_,_,_} = Addr} -> Addr;
+                       {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+                       {error, einval} -> Host0
+                   end,
+    Inet = case Host of
+               {_,_,_,_} -> inet;
+               {_,_,_,_,_,_,_,_} -> inet6;
+               _ ->
+                   case inet:getaddr(Host, inet6) of
+                       {error, _} -> inet;
+                       {ok, _} -> inet6
+                   end
+           end,
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = cuttlefish_duration:parse(str(maps:get(<<"connect_timeout">>, Params, <<"5s">>))),
-    TransportOpts = case tuple_size(Host) =:= 8 of
-                        true -> [inet6];
-                        false -> []
-                    end,
     SslOpts = get_ssl_options(Params, ResId, add_default_scheme(URL)),
     [{host, Host},
      {port, Port},
@@ -323,20 +335,7 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
      {connect_timeout, ConnectTimeout},
      {retry, 5},
      {retry_timeout, 1000},
-     {transport_opts, TransportOpts ++ SslOpts}].
-
-get_addr(Hostname) ->
-    case inet:parse_address(Hostname) of
-        {ok, {_,_,_,_} = Addr} -> Addr;
-        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
-        {error, einval} ->
-            case inet:getaddr(Hostname, inet) of
-                 {error, _} ->
-                     {ok, Addr} = inet:getaddr(Hostname, inet6),
-                     Addr;
-                 {ok, Addr} -> Addr
-            end
-    end.
+     {transport_opts, [Inet] ++ SslOpts}].
 
 pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
