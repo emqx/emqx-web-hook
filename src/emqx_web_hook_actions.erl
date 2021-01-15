@@ -297,15 +297,24 @@ add_default_scheme(URL) ->
     <<"http://", URL/binary>>.
 
 pool_opts(Params = #{<<"url">> := URL}) ->
-    #{host := Host0} = URIMap = uri_string:parse(add_default_scheme(URL)),
+    #{host := Host0} = URIMap = uri_string:parse(binary_to_list(add_default_scheme(URL))),
     Port = maps:get(port, URIMap, 80),
-    Host = get_addr(binary_to_list(Host0)),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
-    TransportOpts = case tuple_size(Host) =:= 8 of
-                        true -> [inet6];
-                        false -> []
-                    end,
+    Host = case inet:parse_address(Host0) of
+                       {ok, {_,_,_,_} = Addr} -> Addr;
+                       {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+                       {error, einval} -> Host0
+                   end,
+    Inet = case Host of
+               {_,_,_,_} -> inet;
+               {_,_,_,_,_,_,_,_} -> inet6;
+               _ ->
+                   case inet:getaddr(Host, inet6) of
+                       {error, _} -> inet;
+                       {ok, _} -> inet6
+                   end
+           end,
     [{host, Host},
      {port, Port},
      {pool_size, PoolSize},
@@ -313,20 +322,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
      {connect_timeout, timer:seconds(ConnectTimeout)},
      {retry, 5},
      {retry_timeout, 1000},
-     {transport_opts, TransportOpts}].
-
-get_addr(Hostname) ->
-    case inet:parse_address(Hostname) of
-        {ok, {_,_,_,_} = Addr} -> Addr;
-        {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
-        {error, einval} ->
-            case inet:getaddr(Hostname, inet) of
-                 {error, _} ->
-                     {ok, Addr} = inet:getaddr(Hostname, inet6),
-                     Addr;
-                 {ok, Addr} -> Addr
-            end
-    end.
+     {transport_opts, [Inet]}].
 
 pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
