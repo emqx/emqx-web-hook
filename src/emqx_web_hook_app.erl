@@ -40,7 +40,7 @@ stop(_State) ->
     ehttpc_sup:stop_pool(?APP).
 
 add_default_scheme(URL) when is_list(URL) ->
-    add_default_scheme(list_to_binary(URL));
+    binary_to_list(add_default_scheme(list_to_binary(URL)));
 add_default_scheme(<<"http://", _/binary>> = URL) ->
     URL;
 add_default_scheme(<<"https://", _/binary>> = URL) ->
@@ -50,19 +50,32 @@ add_default_scheme(URL) ->
 
 translate_env() ->
     {ok, URL} = application:get_env(?APP, url),
-    #{host := Host,
-      port := Port,
+    #{host := Host0,
       path := Path0,
-      scheme := Scheme} = uri_string:parse(binary_to_list(add_default_scheme(URL))),
+      scheme := Scheme} = URIMap = uri_string:parse(add_default_scheme(URL)),
+    Port = maps:get(port, URIMap, case Scheme of
+                                      "https" -> 443;
+                                      _ -> 80
+                                  end),
     Path = path(Path0),
-    PoolSize = application:get_env(?APP, pool_size, 8),
-    IPv6 = case inet:getaddr(Host, inet6) of
-               {error, _} -> inet;
-               {ok, _} -> inet6
-           end,
+    PoolSize = application:get_env(?APP, pool_size, 32),
+    Host = case inet:parse_address(Host0) of
+                       {ok, {_,_,_,_} = Addr} -> Addr;
+                       {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+                       {error, einval} -> Host0
+                   end,
+    Inet = case Host of
+                       {_,_,_,_} -> inet;
+                       {_,_,_,_,_,_,_,_} -> inet6;
+                       _ ->
+                           case inet:getaddr(Host, inet6) of
+                               {error, _} -> inet;
+                               {ok, _} -> inet6
+                           end
+                   end,
     MoreOpts = case Scheme of
                    "http" ->
-                       [{transport_opts, [IPv6]}];
+                       [{transport_opts, [Inet]}];
                    "https" ->
                        CACertFile = application:get_env(?APP, cafile, undefined),
                        CertFile = application:get_env(?APP, certfile, undefined),
@@ -83,7 +96,7 @@ translate_env() ->
                                    {ciphers, lists:foldl(fun(TlsVer, Ciphers) ->
                                                                Ciphers ++ ssl:cipher_suites(all, TlsVer)
                                                            end, [], TlsVers)} | TLSOpts],
-                       [{transport, ssl}, {transport_opts, [IPv6 | NTLSOpts]}]
+                       [{transport, ssl}, {transport_opts, [Inet | NTLSOpts]}]
                 end,
     PoolOpts = [{host, Host},
                 {port, Port},
