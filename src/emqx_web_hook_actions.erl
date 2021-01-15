@@ -301,20 +301,7 @@ pool_opts(Params = #{<<"url">> := URL}) ->
     Port = maps:get(port, URIMap, 80),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
-    Host = case inet:parse_address(Host0) of
-                       {ok, {_,_,_,_} = Addr} -> Addr;
-                       {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
-                       {error, einval} -> Host0
-                   end,
-    Inet = case Host of
-               {_,_,_,_} -> inet;
-               {_,_,_,_,_,_,_,_} -> inet6;
-               _ ->
-                   case inet:getaddr(Host, inet6) of
-                       {error, _} -> inet;
-                       {ok, _} -> inet6
-                   end
-           end,
+    {Inet, Host} = parse_host(Host0),
     [{host, Host},
      {port, Port},
      {pool_size, PoolSize},
@@ -326,3 +313,15 @@ pool_opts(Params = #{<<"url">> := URL}) ->
 
 pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
+
+parse_host(Host) ->
+    case inet:parse_address(Host) of
+        {ok, Addr} when size(Addr) =:= 4 -> {inet, Addr};
+        {ok, Addr} when size(Addr) =:= 8 -> {inet6, Addr};
+        {error, einval} ->
+            case inet:getaddr(Host, inet6) of
+                {ok, _} -> {inet6, Host};
+                {error, _} -> {inet, Host}
+            end
+    end.
+
