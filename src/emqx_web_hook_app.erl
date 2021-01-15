@@ -50,7 +50,7 @@ add_default_scheme(URL) ->
 
 translate_env() ->
     {ok, URL} = application:get_env(?APP, url),
-    #{host := Host,
+    #{host := Host0,
       path := Path0,
       scheme := Scheme} = URIMap = uri_string:parse(add_default_scheme(URL)),
     Port = maps:get(port, URIMap, case Scheme of
