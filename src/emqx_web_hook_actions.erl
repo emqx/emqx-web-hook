@@ -295,8 +295,11 @@ add_default_scheme(URL) ->
     <<"http://", URL/binary>>.
 
 pool_opts(Params = #{<<"url">> := URL}) ->
-    #{host := Host,
-      port := Port} = uri_string:parse(add_default_scheme(URL)),
+    #{host := Host, scheme := Scheme} = URIMap = uri_string:parse(binary_to_list(add_default_scheme(URL))),
+    Port = maps:get(port, URIMap, case Scheme of
+                                      "https" -> 443;
+                                      _ -> 80
+                                  end),
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = maps:get(<<"connect_timeout">>, Params, 5),
     TransportOpts = case inet:getaddr(binary_to_list(Host), inet6) of
