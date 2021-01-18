@@ -59,6 +59,7 @@ init_per_group(Name, Config) ->
             http_server:start_https(),
             emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_ipv6_https/1)
     end,
+    io:format(standard_error, "Configs: ~p~n", [application:get_all_env(emqx_web_hook)]),
     Config.
 
 end_per_group(Name, Config) ->
@@ -78,7 +79,7 @@ set_special_configs_https(_) ->
     Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
     SslOpts = [{keyfile, Path ++ "/client-key.pem"},
                {certfile, Path ++ "/client-cert.pem"},
-               {cacertfile, Path ++ "/ca.pem"}],
+               {cafile, Path ++ "/ca.pem"}],
     application:set_env(emqx_web_hook, ssl, true),
     application:set_env(emqx_web_hook, ssloptions, SslOpts),
     application:set_env(emqx_web_hook, url, "https://127.0.0.1:8081").
@@ -127,7 +128,7 @@ t_change_config(_) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-t_valid() ->
+t_valid(_) ->
     application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
     {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
                                , {proto_ver, v5}
@@ -149,7 +150,7 @@ t_valid() ->
 
 get_http_message() ->
     receive
-          {Params, Headers} ->
+        {Params, Headers} ->
             L = [B || {B, _} <- Params],
             {lists:reverse([emqx_json:decode(E, [return_maps]) || E <- L]), Headers}
     after 500 ->
