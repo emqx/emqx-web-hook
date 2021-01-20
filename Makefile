@@ -10,7 +10,7 @@ compile:
 	$(REBAR) compile
 
 ct:
-	$(REBAR) as test ct -v
+	$(REBAR) ct --name emqx@127.0.0.1 -v
 
 eunit:
 	$(REBAR) as test eunit
