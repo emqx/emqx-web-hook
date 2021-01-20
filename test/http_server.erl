@@ -3,73 +3,94 @@
 %%
 %% It will deliver the http-request params to initialer process
 %%--------------------------------------------------------------------
+%%
+%% Author:wwhai
+%%
 -module(http_server).
+-behaviour(gen_server).
 
--compile(export_all).
--compile(nowarn_export_all).
-
+-export([start_link/0]).
+-export([code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1, terminate/2]).
+-record(state, {}).
 %%--------------------------------------------------------------------
 %% APIs
 %%--------------------------------------------------------------------
-start() ->
-  {ok, _} = application:ensure_all_started(cowboy),
-  cowboy_router:compile([
-        {'_', [
-              {"/", ?MODULE, self()}
-        ]}
-  ]).
 
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-start_http() ->
-    {ok, _Pid1} = cowboy:start_clear(http, [{port, 8080}], #{
-        env => #{dispatch => start()}
-    }),
-    io:format("Start http server on 8080 successfully!~n").
+init([]) ->
+    EtsOptions = [named_table, public, set, {write_concurrency, true},
+                                            {read_concurrency, true}],
+    emqx_web_hook_http_test = ets:new(emqx_web_hook_http_test, EtsOptions),
+    start_http(),
+    start_https(),
+    {ok, #state{}}.
 
-start_https() ->
-  Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
-  SslOpts = [{keyfile, Path ++ "/server-key.pem"},
-             {cacertfile, Path ++ "/ca.pem"},
-            {certfile, Path ++ "/server-cert.pem"}],
+handle_call(_Request, _From, State) ->
+    {reply, ignored, State}.
 
-  {ok, _Pid2} = cowboy:start_tls(https, [{port, 8081}] ++ SslOpts,
-                                   #{env => #{dispatch => start()}}),
-    io:format(standard_error, "Start https server on 8081 successfully!~n", []).
+handle_cast(_Msg, State) ->
+    {noreply, State}.
 
-stop_http() ->
-    ok = cowboy:stop_listener(http),
-    io:format("Stopped http server on 8080").
+handle_info(_Info, State) ->
+    {noreply, State}.
 
-stop_https() ->
-    ok = cowboy:stop_listener(https),
-    io:format("Stopped https server on 8081").
+terminate(_Reason, _State) ->
+    stop_http(),
+    stop_https().
 
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% Callbacks
 %%--------------------------------------------------------------------
 
-init(Req, ReceiverPid) ->
-    Req1 = handle_request(Req, ReceiverPid),
-    {ok, Req1, ReceiverPid}.
+start_http() ->
+    {ok, _Pid1} = cowboy:start_clear(http, [{port, 9999}], #{
+        env => #{dispatch => start()}
+    }),
+    io:format(standard_error, "[TEST LOG] Start http server on 9999 successfully!~n", []).
 
-%% @private
-handle_request(Req, ReceiverPid) ->
+start_https() ->
+    Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
+    SslOpts = [{keyfile, Path ++ "/server-key.pem"},
+               {cacertfile, Path ++ "/ca.pem"},
+               {certfile, Path ++ "/server-cert.pem"}],
+
+    {ok, _Pid2} = cowboy:start_tls(https, [{port, 8888}] ++ SslOpts,
+                                   #{env => #{dispatch => start()}}),
+    io:format(standard_error, "[TEST LOG] Start https server on 8888 successfully!~n", []).
+
+stop_http() ->
+    ok = cowboy:stop_listener(http),
+    io:format("[TEST LOG] Stopped http server on 9999").
+
+stop_https() ->
+    ok = cowboy:stop_listener(https),
+    io:format("[TEST LOG] Stopped https server on 8888").
+
+start() ->
+    {ok, _} = application:ensure_all_started(cowboy),
+    cowboy_router:compile([
+        {'_', [{"/", ?MODULE, #{}}]}
+    ]).
+
+init(Req, State) ->
     Method = cowboy_req:method(Req),
     Headers = cowboy_req:headers(Req),
-    Params =
-        case Method of
-            <<"GET">> -> cowboy_req:parse_qs(Req);
-            <<"POST">> ->
-                {ok, PostVals, _Req2} = cowboy_req:read_urlencoded_body(Req),
-                PostVals
-        end,
-    io:format("Request Data:~p~nHeaders :~p~n", [Params, Headers]),
-    erlang:send(ReceiverPid, {Params, Headers}),
-    reply(Req, ok).
+    [Params] = case Method of
+                 <<"GET">> -> cowboy_req:parse_qs(Req);
+                 <<"POST">> ->
+                     {ok, PostVals, _} = cowboy_req:read_urlencoded_body(Req),
+                     PostVals
+             end,
+    % io:format(standard_error, "[TEST LOG] Request Data:~p~n[TEST LOG] Headers :~p~n", [Params, Headers]),
+    ets:insert(emqx_web_hook_http_test, {Params, Headers}),
+    {ok, reply(Req, ok), State}.
 
-%% @private
 reply(Req, ok) ->
-    cowboy_req:reply(200, #{<<"content-type">> => <<"text/plain">>}, <<"hello">>, Req);
+    cowboy_req:reply(200, #{<<"content-type">> => <<"text/plain">>}, <<"ok">>, Req);
 reply(Req, error) ->
     cowboy_req:reply(404, #{<<"content-type">> => <<"text/plain">>}, <<"deny">>, Req).
