@@ -106,15 +106,10 @@ t_valid(Config) ->
                                , {keepalive, 60}
                                ]),
     {ok, _} = emqtt:connect(C),
-    timer:sleep(500),
     emqtt:subscribe(C, <<"TopicA">>, qos2),
-    timer:sleep(500),
     emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
-    timer:sleep(500),
     emqtt:unsubscribe(C, <<"TopicA">>),
-    timer:sleep(500),
     emqtt:disconnect(C),
-    timer:sleep(500),
     L = ets:tab2list(emqx_web_hook_http_test),
     [begin
         Maps = emqx_json:decode(P, [return_maps]),

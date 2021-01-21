@@ -49,7 +49,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 start_http() ->
     {ok, _Pid1} = cowboy:start_clear(http, [{port, 9999}], #{
-        env => #{dispatch => start()}
+        env => #{dispatch => compile_router()}
     }),
     io:format(standard_error, "[TEST LOG] Start http server on 9999 successfully!~n", []).
 
@@ -60,7 +60,7 @@ start_https() ->
                {certfile, Path ++ "/server-cert.pem"}],
 
     {ok, _Pid2} = cowboy:start_tls(https, [{port, 8888}] ++ SslOpts,
-                                   #{env => #{dispatch => start()}}),
+                                   #{env => #{dispatch => compile_router()}}),
     io:format(standard_error, "[TEST LOG] Start https server on 8888 successfully!~n", []).
 
 stop_http() ->
@@ -71,7 +71,7 @@ stop_https() ->
     ok = cowboy:stop_listener(https),
     io:format("[TEST LOG] Stopped https server on 8888").
 
-start() ->
+compile_router() ->
     {ok, _} = application:ensure_all_started(cowboy),
     cowboy_router:compile([
         {'_', [{"/", ?MODULE, #{}}]}
@@ -86,7 +86,6 @@ init(Req, State) ->
                      {ok, PostVals, _} = cowboy_req:read_urlencoded_body(Req),
                      PostVals
              end,
-    % io:format(standard_error, "[TEST LOG] Request Data:~p~n[TEST LOG] Headers :~p~n", [Params, Headers]),
     ets:insert(emqx_web_hook_http_test, {Params, Headers}),
     {ok, reply(Req, ok), State}.
 
