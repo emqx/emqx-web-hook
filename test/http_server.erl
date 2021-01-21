@@ -10,21 +10,25 @@
 -behaviour(gen_server).
 
 -export([start_link/0]).
+-export([get_received_data/0]).
+-export([stop/1]).
 -export([code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1, terminate/2]).
+-define(HTTP_PORT, 9999).
+-define(HTTPS_PORT, 8888).
 -record(state, {}).
 %%--------------------------------------------------------------------
 %% APIs
 %%--------------------------------------------------------------------
 
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link(?MODULE, [], []).
 
 init([]) ->
     EtsOptions = [named_table, public, set, {write_concurrency, true},
                                             {read_concurrency, true}],
     emqx_web_hook_http_test = ets:new(emqx_web_hook_http_test, EtsOptions),
-    start_http(),
-    start_https(),
+    ok = start_http(?HTTP_PORT),
+    ok = start_https(?HTTPS_PORT),
     {ok, #state{}}.
 
 handle_call(_Request, _From, State) ->
@@ -43,23 +47,29 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+get_received_data() ->
+    ets:tab2list(emqx_web_hook_http_test).
+
+stop(Pid) ->
+    ok = gen_server:stop(Pid).
+
 %%--------------------------------------------------------------------
 %% Callbacks
 %%--------------------------------------------------------------------
 
-start_http() ->
-    {ok, _Pid1} = cowboy:start_clear(http, [{port, 9999}], #{
+start_http(Port) ->
+    {ok, _Pid1} = cowboy:start_clear(http, [{port, Port}], #{
         env => #{dispatch => compile_router()}
     }),
     io:format(standard_error, "[TEST LOG] Start http server on 9999 successfully!~n", []).
 
-start_https() ->
+start_https(Port) ->
     Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
     SslOpts = [{keyfile, Path ++ "/server-key.pem"},
                {cacertfile, Path ++ "/ca.pem"},
                {certfile, Path ++ "/server-cert.pem"}],
 
-    {ok, _Pid2} = cowboy:start_tls(https, [{port, 8888}] ++ SslOpts,
+    {ok, _Pid2} = cowboy:start_tls(https, [{port, Port}] ++ SslOpts,
                                    #{env => #{dispatch => compile_router()}}),
     io:format(standard_error, "[TEST LOG] Start https server on 8888 successfully!~n", []).
 

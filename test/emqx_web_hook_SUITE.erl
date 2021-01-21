@@ -110,15 +110,13 @@ t_valid(Config) ->
     emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
     emqtt:unsubscribe(C, <<"TopicA">>),
     emqtt:disconnect(C),
-    L = ets:tab2list(emqx_web_hook_http_test),
     [begin
         Maps = emqx_json:decode(P, [return_maps]),
         validate_hook_resp(Maps),
-        ?assertEqual(<<"K1">>, maps:get(<<"k1">>, Headers)),
-        ?assertEqual(<<"K2">>, maps:get(<<"k2">>, Headers))
+        validate_hook_headers(Headers)
     end
-    || {{P, _Bool}, Headers} <- L],
-    ok = gen_server:stop(ServerPid),
+    || {{P, _Bool}, Headers} <- http_server:get_received_data()],
+    http_server:stop(ServerPid),
     Config.
 
 t_check_hooked(_) ->
@@ -143,61 +141,65 @@ t_change_config(_) ->
 %% Utils
 %%--------------------------------------------------------------------
 
+validate_hook_headers(Headers) ->
+    ?assertEqual(<<"K1">>, maps:get(<<"k1">>, Headers)),
+    ?assertEqual(<<"K2">>, maps:get(<<"k2">>, Headers)).
+
 validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
     ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
     ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
     ?assertEqual(<<"127.0.0.1">>, maps:get(<<"ipaddress">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"client_connack">>)) ->
     ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
     ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
     ?assertEqual(<<"success">>, maps:get(<<"conn_ack">>, Body)),
     ?assertEqual(<<"127.0.0.1">>, maps:get(<<"ipaddress">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"client_connected">>)) ->
     _ = maps:get(<<"connected_at">>, Body),
     ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),
     ?assertEqual(60, maps:get(<<"keepalive">>, Body)),
     ?assertEqual(<<"127.0.0.1">>, maps:get(<<"ipaddress">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"client_disconnected">>)) ->
     ?assertEqual(<<"normal">>, maps:get(<<"reason">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"client_subscribe">>)) ->
     _ = maps:get(<<"opts">>, Body),
     ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"client_unsubscribe">>)) ->
     _ = maps:get(<<"opts">>, Body),
     ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"session_subscribed">>)) ->
     _ = maps:get(<<"opts">>, Body),
     ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"session_unsubscribed">>)) ->
     ?assertEqual(<<"TopicA">>, maps:get(<<"topic">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"session_terminated">>)) ->
     ?assertEqual(<<"normal">>, maps:get(<<"reason">>, Body)),
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_username_clientid(Body);
 validate_hook_resp(Body = ?ACTION(<<"message_publish">>)) ->
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_messages_attrs(Body);
 validate_hook_resp(Body = ?ACTION(<<"message_delivered">>)) ->
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_messages_attrs(Body);
 validate_hook_resp(Body = ?ACTION(<<"message_acked">>)) ->
-    ?assertEqual(<<"nonode@nohost">>, maps:get(<<"node">>, Body)),
+    ?assertEqual(<<"emqx@127.0.0.1">>, maps:get(<<"node">>, Body)),
     assert_messages_attrs(Body).
 
 assert_username_clientid(#{<<"clientid">> := ClientId, <<"username">> := Username}) ->
