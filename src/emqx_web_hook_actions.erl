@@ -225,20 +225,7 @@ on_action_create_data_to_webserver(_Id, Params) ->
         Body = format_msg(PayloadTks, Selected),
         NPath = emqx_rule_utils:proc_tmpl(PathTks, Selected),
         Req = create_req(Method, NPath, NHeaders, Body),
-        case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req, RequestTimeout) of
-            {ok, StatusCode, _} when StatusCode >= 200 andalso StatusCode < 300 ->
-                ok;
-            {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
-                ok;
-            {ok, StatusCode, _} ->
-                ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
-                ok;
-            {ok, StatusCode, _, _} ->
-                ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
-                ok;
-            {error, Reason} ->
-                ?LOG(error, "[WebHook Action] HTTP request error: ~p", [Reason])
-        end
+        do_request(ehttpc_pool:pick_worker(Pool, ClientId), Method, Req, RequestTimeout)
     end.
 
 format_msg([], Data) ->
@@ -325,3 +312,29 @@ parse_host(Host) ->
             end
     end.
 
+do_request(Pid, Method, Req, Timeout) ->
+    do_request(Pid, Method, Req, Timeout, 3).
+
+%% Only retry when connection closed by keepalive
+do_request(_Pid, _Method, _Req, _Timeout, 0) ->
+    ?LOG(error, "HTTP request error: normal"),
+    ok;
+do_request(Pid, Method, Req, Timeout, Retry) ->
+    case ehttpc:request(Pid, Method, Req, Timeout) of
+        {ok, StatusCode, _} when StatusCode >= 200 andalso StatusCode < 300 ->
+            ok;
+        {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
+            ok;
+        {ok, StatusCode, _} ->
+            ?LOG(warning, "HTTP request failed with status code: ~p", [StatusCode]),
+            ok;
+        {ok, StatusCode, _, _} ->
+            ?LOG(warning, "HTTP request failed with status code: ~p", [StatusCode]),
+            ok;
+        {error, normal} ->
+            do_request(Pid, Method, Req, Timeout, Retry - 1),
+            ok;
+        {error, Reason} ->
+            ?LOG(error, "HTTP request error: ~p", [Reason]),
+            ok
+    end.
