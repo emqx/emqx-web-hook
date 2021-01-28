@@ -326,7 +326,17 @@ send_http_request(ClientID, Params) ->
     Headers = application:get_env(?APP, headers, []),
     Body = emqx_json:encode(Params),
     ?LOG(debug, "Send to: ~0p, params: ~0s", [Path, Body]),
-    case ehttpc:request(ehttpc_pool:pick_worker(?APP, ClientID), post, {Path, Headers, Body}) of
+    do_request(ehttpc_pool:pick_worker(?APP, ClientID), post, {Path, Headers, Body}).
+
+do_request(Pid, Method, Req) ->
+    do_request(Pid, Method, Req, 3).
+
+%% Only retry when connection closed by keepalive
+do_request(_Pid, _Method, _Req, 0) ->
+    ?LOG(error, "HTTP request error: normal"),
+    ok;
+do_request(Pid, Method, Req, Retry) ->
+    case ehttpc:request(Pid, Method, Req) of
         {ok, StatusCode, _} when StatusCode >= 200 andalso StatusCode < 300 ->
             ok;
         {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
@@ -337,8 +347,12 @@ send_http_request(ClientID, Params) ->
         {ok, StatusCode, _, _} ->
             ?LOG(warning, "HTTP request failed with status code: ~p", [StatusCode]),
             ok;
+        {error, normal} ->
+            do_request(Pid, Method, Req, Retry - 1),
+            ok;
         {error, Reason} ->
-            ?LOG(error, "HTTP request error: ~p", [Reason]), ok
+            ?LOG(error, "HTTP request error: ~p", [Reason]),
+            ok
     end.
 
 parse_rule(Rules) ->
