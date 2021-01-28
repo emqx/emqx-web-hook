@@ -231,13 +231,13 @@ on_action_create_data_to_webserver(_Id, Params) ->
             {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
                 ok;
             {ok, StatusCode, _} ->
-                ?LOG(warning, "HTTP request failed with status code: ~p", [StatusCode]),
+                ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
                 ok;
             {ok, StatusCode, _, _} ->
-                ?LOG(warning, "HTTP request failed with status code: ~p", [StatusCode]),
+                ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
                 ok;
             {error, Reason} ->
-                ?LOG(error, "HTTP request error: ~p", [Reason]),
+                ?LOG(error, "[WebHook Action] HTTP request error: ~p", [Reason]),
                 ok
         end
     end.
