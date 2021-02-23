@@ -47,49 +47,38 @@ init_per_group(Name, Config) ->
     set_special_cfgs(),
     case Name of
         http ->
-            http_server:start_http(),
             emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_http/1);
         https ->
-            http_server:start_https(),
             emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_https/1);
         ipv6http ->
-            http_server:start_http(),
             emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_ipv6_http/1);
         ipv6https ->
-            http_server:start_https(),
             emqx_ct_helpers:start_apps([emqx_web_hook], fun set_special_configs_ipv6_https/1)
     end,
     Config.
 
-end_per_group(Name, Config) ->
-    case lists:member(Name,[http, ipv6http]) of
-        true ->
-            http_server:stop_http();
-        _ ->
-            http_server:stop_https()
-    end,
+end_per_group(_Name, Config) ->
     emqx_ct_helpers:stop_apps([emqx_web_hook]),
     Config.
 
 set_special_configs_http(_) ->
-    ok.
+    application:set_env(emqx_web_hook, url, "http://127.0.0.1:9999").
 
 set_special_configs_https(_) ->
     Path = emqx_ct_helpers:deps_path(emqx_web_hook, "test/emqx_web_hook_SUITE_data/"),
     SslOpts = [{keyfile, Path ++ "/client-key.pem"},
                {certfile, Path ++ "/client-cert.pem"},
-               {cacertfile, Path ++ "/ca.pem"}],
+               {cafile, Path ++ "/ca.pem"}],
     application:set_env(emqx_web_hook, ssl, true),
     application:set_env(emqx_web_hook, ssloptions, SslOpts),
-    application:set_env(emqx_web_hook, url, "https://127.0.0.1:8081").
+    application:set_env(emqx_web_hook, url, "https://127.0.0.1:8888").
 
-set_special_configs_ipv6_http(N) ->
-    set_special_configs_http(N),
-    application:set_env(emqx_web_hook, url, "http://[::1]:8080").
+set_special_configs_ipv6_http(_) ->
+    application:set_env(emqx_web_hook, url, "http://[::1]:9999").
 
 set_special_configs_ipv6_https(N) ->
     set_special_configs_https(N),
-    application:set_env(emqx_web_hook, url, "https://[::1]:8081").
+    application:set_env(emqx_web_hook, url, "https://[::1]:8888").
 
 set_special_cfgs() ->
     AllRules = [{"message.acked",        "{\"action\": \"on_message_acked\"}"},
@@ -109,6 +98,27 @@ set_special_cfgs() ->
 %% Test cases
 %%--------------------------------------------------------------------
 
+t_valid(Config) ->
+    {ok, ServerPid} = http_server:start_link(),
+    application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
+    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
+                               , {proto_ver, v5}
+                               , {keepalive, 60}
+                               ]),
+    {ok, _} = emqtt:connect(C),
+    emqtt:subscribe(C, <<"TopicA">>, qos2),
+    emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
+    emqtt:unsubscribe(C, <<"TopicA">>),
+    emqtt:disconnect(C),
+    [begin
+        Maps = emqx_json:decode(P, [return_maps]),
+        validate_hook_resp(Maps),
+        validate_hook_headers(Headers)
+    end
+    || {{P, _Bool}, Headers} <- http_server:get_received_data()],
+    http_server:stop(ServerPid),
+    Config.
+
 t_check_hooked(_) ->
     {ok, Rules} = application:get_env(emqx_web_hook, rules),
     lists:foreach(fun({HookName, _Action}) ->
@@ -127,34 +137,13 @@ t_change_config(_) ->
     application:set_env(emqx_web_hook, rules, Rules),
     emqx_web_hook:load().
 
-t_valid() ->
-    application:set_env(emqx_web_hook, headers, [{"k1","K1"}, {"k2", "K2"}]),
-    {ok, C} = emqtt:start_link([ {clientid, <<"simpleClient">>}
-                               , {proto_ver, v5}
-                               , {keepalive, 60}
-                               ]),
-    {ok, _} = emqtt:connect(C),
-    emqtt:subscribe(C, <<"TopicA">>, qos2),
-    emqtt:publish(C, <<"TopicA">>, <<"Payload...">>, qos2),
-    emqtt:unsubscribe(C, <<"TopicA">>),
-    emqtt:disconnect(C),
-    {Params, Headers} = get_http_message(),
-    [validate_hook_resp(A) || A <- Params],
-    ?assertEqual(<<"K1">>,  maps:get(<<"k1">>, Headers)),
-    ?assertEqual(<<"K2">>,  maps:get(<<"k2">>, Headers)).
-
 %%--------------------------------------------------------------------
 %% Utils
 %%--------------------------------------------------------------------
 
-get_http_message() ->
-    receive
-          {Params, Headers} ->
-            L = [B || {B, _} <- Params],
-            {lists:reverse([emqx_json:decode(E, [return_maps]) || E <- L]), Headers}
-    after 500 ->
-            {null, null}
-    end.
+validate_hook_headers(Headers) ->
+    ?assertEqual(<<"K1">>, maps:get(<<"k1">>, Headers)),
+    ?assertEqual(<<"K2">>, maps:get(<<"k2">>, Headers)).
 
 validate_hook_resp(Body = ?ACTION(<<"client_connect">>)) ->
     ?assertEqual(5,  maps:get(<<"proto_ver">>, Body)),

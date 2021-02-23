@@ -21,109 +21,7 @@
 -include_lib("emqx/include/logger.hrl").
 -include_lib("emqx_rule_engine/include/rule_actions.hrl").
 
--define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
--define(RESOURCE_CONFIG_SPEC, #{
-            url => #{order => 1,
-                     type => string,
-                     format => url,
-                     required => true,
-                     title => #{en => <<"Request URL">>,
-                                zh => <<"请求 URL"/utf8>>},
-                     description => #{en => <<"Request URL">>,
-                                      zh => <<"请求 URL"/utf8>>}},
-            method => #{order => 2,
-                        type => string,
-                        enum => [<<"PUT">>,<<"POST">>,<<"GET">>,<<"DELETE">>],
-                        default => <<"POST">>,
-                        title => #{en => <<"Request Method">>,
-                                   zh => <<"请求方法"/utf8>>},
-                        description => #{en => <<"Request Method. \n"
-                                                 "Note that: the Payload Template of Action will be discarded in case of GET method">>,
-                                         zh => <<"请求方法。\n"
-                                                 "注意：当方法为 GET 时，动作中的 '消息内容模板' 参数会被忽略"/utf8>>}},
-            content_type => #{order => 3,
-                              type => string,
-                              enum => [<<"application/json">>,<<"text/plain;charset=UTF-8">>],
-                              default => <<"application/json">>,
-                              title => #{en => <<"Content-Type">>,
-                                         zh => <<"Content-Type"/utf8>>},
-                              description => #{en => <<"The Content-Type of HTTP Request">>,
-                                               zh => <<"HTTP 请求头中的 Content-Type 字段值"/utf8>>}},
-            headers => #{order => 4,
-                         type => object,
-                         schema => #{},
-                         default => #{},
-                         title => #{en => <<"Request Header">>,
-                                    zh => <<"请求头"/utf8>>},
-                         description => #{en => <<"The custom HTTP request headers">>,
-                                          zh => <<"自定义的 HTTP 请求头列表"/utf8>>}}
-        }).
-
--define(ACTION_PARAM_RESOURCE, #{
-            order => 0,
-            type => string,
-            required => true,
-            title => #{en => <<"Resource ID">>,
-                       zh => <<"资源 ID"/utf8>>},
-            description => #{en => <<"Bind a resource to this action">>,
-                             zh => <<"给动作绑定一个资源"/utf8>>}
-        }).
-
--define(ACTION_DATA_SPEC, #{
-            '$resource' => ?ACTION_PARAM_RESOURCE,
-            path => #{order => 1,
-                      type => string,
-                      required => false,
-                      default => <<>>,
-                      title => #{en => <<"Path">>,
-                                 zh => <<"Path"/utf8>>},
-                      description => #{en => <<"A path component, variable interpolation from "
-                                               "SQL statement is supported. This value will be "
-                                               "concatenated with Request URL.">>,
-                                       zh => <<"URL 的路径配置，支持使用 ${} 获取规则输出的字段值。\n"
-                                               "例如：${clientid}。该值会与 Request URL 组成一个完整的 URL"/utf8>>}
-                     },
-            payload_tmpl => #{
-                order => 2,
-                type => string,
-                input => textarea,
-                required => false,
-                default => <<"">>,
-                title => #{en => <<"Payload Template">>,
-                           zh => <<"消息内容模板"/utf8>>},
-                description => #{en => <<"The payload template, variable interpolation is supported."
-                                         "If using empty template (default), then the payload will "
-                                         "be all the available vars in JSON format">>,
-                                 zh => <<"消息内容模板，支持使用 ${} 获取变量值。"
-                                         "默认消息内容为规则输出的所有字段的 JSON 字符串"/utf8>>}}
-            }).
-
--resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
-                 create => on_resource_create,
-                 status => on_get_resource_status,
-                 destroy => on_resource_destroy,
-                 params => ?RESOURCE_CONFIG_SPEC,
-                 title => #{en => <<"WebHook">>,
-                            zh => <<"WebHook"/utf8>>},
-                 description => #{en => <<"WebHook">>,
-                                  zh => <<"WebHook"/utf8>>}
-                }).
-
--rule_action(#{name => data_to_webserver,
-               category => data_forward,
-               for => '$any',
-               create => on_action_create_data_to_webserver,
-               params => ?ACTION_DATA_SPEC,
-               types => [?RESOURCE_TYPE_WEBHOOK],
-               title => #{en => <<"Data to Web Server">>,
-                          zh => <<"发送数据到 Web 服务"/utf8>>},
-               description => #{en => <<"Forward Messages to Web Server">>,
-                                zh => <<"将数据转发给 Web 服务"/utf8>>}
-              }).
-
 -type(action_fun() :: fun((Data :: map(), Envs :: map()) -> Result :: any())).
-
--type(url() :: binary()).
 
 -export_type([action_fun/0]).
 
@@ -136,22 +34,159 @@
         , on_action_data_to_webserver/2
         ]).
 
+-define(RESOURCE_TYPE_WEBHOOK, 'web_hook').
+-define(RESOURCE_CONFIG_SPEC, #{
+    method => #{order => 1,
+                type => string,
+                enum => [<<"PUT">>,<<"POST">>],
+                default => <<"POST">>,
+                title => #{en => <<"Request Method">>,
+                           zh => <<"请求方法"/utf8>>},
+                description => #{en => <<"Request Method">>,
+                                 zh => <<"请求方法"/utf8>>}},
+    url => #{order => 2,
+             type => string,
+             format => url,
+             required => true,
+             title => #{en => <<"Request URL">>,
+                        zh => <<"请求 URL"/utf8>>},
+             description => #{en => <<"Request URL">>,
+                              zh => <<"请求 URL"/utf8>>}},
+    headers => #{order => 3,
+                 type => object,
+                 schema => #{},
+                 default => #{},
+                 title => #{en => <<"Request Header">>,
+                            zh => <<"请求头"/utf8>>},
+                 description => #{en => <<"Request Header">>,
+                                  zh => <<"请求头"/utf8>>}},
+    connect_timeout => #{order => 4,
+                         type => string,
+                         default => <<"5s">>,
+                         title => #{en => <<"Connect Timeout">>,
+                                    zh => <<"连接超时时间"/utf8>>},
+                         description => #{en => <<"Connect Timeout In Seconds">>,
+                                          zh => <<"连接超时时间"/utf8>>}},
+    request_timeout => #{order => 5,
+                         type => string,
+                         default => <<"5s">>,
+                         title => #{en => <<"Request Timeout">>,
+                                    zh => <<"请求超时时间时间"/utf8>>},
+                         description => #{en => <<"Request Timeout In Seconds">>,
+                                          zh => <<"请求超时时间"/utf8>>}},
+    pool_size => #{order => 6,
+                   type => number,
+                   default => 8,
+                   title => #{en => <<"Pool Size">>, zh => <<"连接池大小"/utf8>>},
+                   description => #{en => <<"Connection Pool">>,
+                                    zh => <<"连接池大小"/utf8>>}
+                },
+    cacertfile => #{order => 7,
+                    type => file,
+                    default => <<"">>,
+                    title => #{en => <<"CA Certificate File">>,
+                               zh => <<"CA 证书文件"/utf8>>},
+                    description => #{en => <<"CA Certificate file">>,
+                                     zh => <<"CA 证书文件"/utf8>>}},
+    keyfile => #{order => 8,
+                 type => file,
+                 default => <<"">>,
+                 title =>#{en => <<"SSL Key">>,
+                           zh => <<"SSL Key"/utf8>>},
+                 description => #{en => <<"Your ssl keyfile">>,
+                                  zh => <<"SSL 私钥"/utf8>>}},
+    certfile => #{order => 9,
+                  type => file,
+                  default => <<"">>,
+                  title =>#{en => <<"SSL Cert">>,
+                            zh => <<"SSL Cert"/utf8>>},
+                  description => #{en => <<"Your ssl certfile">>,
+                                   zh => <<"SSL 证书"/utf8>>}},
+    verify => #{order => 10,
+                type => boolean,
+                default => false,
+                title =>#{en => <<"Verify Server Certfile">>,
+                          zh => <<"校验服务器证书"/utf8>>},
+                description => #{en => <<"Whether to verify the server certificate. By default, the client will not verify the server's certificate. If verification is required, please set it to true.">>,
+                                 zh => <<"是否校验服务器证书。 默认客户端不会去校验服务器的证书，如果需要校验，请设置成true。"/utf8>>}}
+}).
+
+-define(ACTION_PARAM_RESOURCE, #{
+    order => 0,
+    type => string,
+    required => true,
+    title => #{en => <<"Resource ID">>,
+               zh => <<"资源 ID"/utf8>>},
+    description => #{en => <<"Bind a resource to this action">>,
+                     zh => <<"给动作绑定一个资源"/utf8>>}
+}).
+
+-define(ACTION_DATA_SPEC, #{
+    '$resource' => ?ACTION_PARAM_RESOURCE,
+    payload_tmpl => #{
+        order => 1,
+        type => string,
+        input => textarea,
+        required => false,
+        default => <<"">>,
+        title => #{en => <<"Payload Template">>,
+                   zh => <<"消息内容模板"/utf8>>},
+        description => #{en => <<"The payload template, variable interpolation is supported. If using empty template (default), then the payload will be all the available vars in JSON format">>,
+                         zh => <<"消息内容模板，支持变量。若使用空模板（默认），消息内容为 JSON 格式的所有字段"/utf8>>}
+    }
+}).
+
+-resource_type(#{name => ?RESOURCE_TYPE_WEBHOOK,
+    create => on_resource_create,
+    status => on_get_resource_status,
+    destroy => on_resource_destroy,
+    params => ?RESOURCE_CONFIG_SPEC,
+    title => #{en => <<"WebHook">>,
+               zh => <<"WebHook"/utf8>>},
+    description => #{en => <<"WebHook">>,
+                     zh => <<"WebHook"/utf8>>}
+}).
+
+-rule_action(#{name => data_to_webserver,
+    category => data_forward,
+    for => '$any',
+    create => on_action_create_data_to_webserver,
+    params => ?ACTION_DATA_SPEC,
+    types => [?RESOURCE_TYPE_WEBHOOK],
+    title => #{en => <<"Data to Web Server">>,
+               zh => <<"发送数据到 Web 服务"/utf8>>},
+    description => #{en => <<"Forward Messages to Web Server">>,
+                     zh => <<"将数据转发给 Web 服务"/utf8>>}
+}).
+
 %%------------------------------------------------------------------------------
 %% Actions for web hook
 %%------------------------------------------------------------------------------
 
 -spec(on_resource_create(binary(), map()) -> map()).
-on_resource_create(ResId, Conf = #{<<"url">> := Url}) ->
-    case emqx_rule_utils:http_connectivity(Url) of
-        ok -> Conf;
+on_resource_create(ResId, Conf) ->
+    {ok, _} = application:ensure_all_started(ehttpc),
+    Options = pool_opts(Conf, ResId),
+    PoolName = pool_name(ResId),
+    start_resource(ResId, PoolName, Options),
+    Conf#{<<"pool">> => PoolName, options => Options}.
+
+start_resource(ResId, PoolName, Options) ->
+    case ehttpc_pool:start_pool(PoolName, Options) of
+        {ok, _} ->
+            ?LOG(info, "Initiated Resource ~p Successfully, ResId: ~p",
+                 [?RESOURCE_TYPE_WEBHOOK, ResId]);
+        {error, {already_started, _Pid}} ->
+            on_resource_destroy(ResId, #{<<"pool">> => PoolName}),
+            start_resource(ResId, PoolName, Options);
         {error, Reason} ->
             ?LOG(error, "Initiate Resource ~p failed, ResId: ~p, ~0p",
-                [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
-            error({connect_failure, Reason})
+                 [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({{?RESOURCE_TYPE_WEBHOOK, ResId}, create_failed})
     end.
 
 -spec(on_get_resource_status(binary(), map()) -> map()).
-on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
+on_get_resource_status(ResId, #{<<"url">> := Url}) ->
     #{is_alive =>
         case emqx_rule_utils:http_connectivity(Url) of
             ok -> true;
@@ -162,30 +197,55 @@ on_get_resource_status(ResId, _Params = #{<<"url">> := Url}) ->
         end}.
 
 -spec(on_resource_destroy(binary(), map()) -> ok | {error, Reason::term()}).
-on_resource_destroy(_ResId, _Params) ->
-    ok.
+on_resource_destroy(ResId, #{<<"pool">> := PoolName}) ->
+    ?LOG(info, "Destroying Resource ~p, ResId: ~p", [?RESOURCE_TYPE_WEBHOOK, ResId]),
+    case ehttpc_pool:stop_pool(PoolName) of
+        ok ->
+            ?LOG(info, "Destroyed Resource ~p Successfully, ResId: ~p", [?RESOURCE_TYPE_WEBHOOK, ResId]);
+        {error, Reason} ->
+            ?LOG(error, "Destroy Resource ~p failed, ResId: ~p, ~p", [?RESOURCE_TYPE_WEBHOOK, ResId, Reason]),
+            error({{?RESOURCE_TYPE_WEBHOOK, ResId}, destroy_failed})
+    end.
 
 %% An action that forwards publish messages to a remote web server.
--spec(on_action_create_data_to_webserver(Id::binary(), #{url() := string()}) -> action_fun()).
+-spec on_action_create_data_to_webserver(binary(), map()) -> {[{atom(), term()}], map()}.
 on_action_create_data_to_webserver(Id, Params) ->
-    #{url := Url, headers := Headers, method := Method, content_type := ContentType, payload_tmpl := PayloadTmpl, path := Path}
-        = parse_action_params(Params),
-    PathTks = emqx_rule_utils:preproc_tmpl(Path),
-    PayloadTks = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
+    #{method := Method,
+      path := Path,
+      headers := Headers,
+      payload_tmpl := PayloadTmpl,
+      request_timeout := RequestTimeout,
+      pool := Pool} = parse_action_params(Params),
+    PayloadTokens = emqx_rule_utils:preproc_tmpl(PayloadTmpl),
     Params.
 
 on_action_data_to_webserver(Selected, _Envs =
                             #{?BINDING_KEYS := #{
                                 'Id' := Id,
-                                'Url' := Url,
-                                'Headers' := Headers,
                                 'Method' := Method,
-                                'ContentType' := ContentType,
-                                'PathTks' := PathTks,
-                                'PayloadTks' := PayloadTks
-                            }}) ->
-    FullUrl = Url ++ emqx_rule_utils:proc_tmpl(PathTks, Selected),
-    http_request(Id, FullUrl, Headers, Method, ContentType, format_msg(PayloadTks, Selected)).
+                                'Path' := Path,
+                                'Headers' := Headers,
+                                'PayloadTokens' := PayloadTokens,
+                                'RequestTimeout' := RequestTimeout,
+                                'Pool' := Pool},
+                                clientid := ClientID}) ->
+    Body = format_msg(PayloadTokens, Selected),
+    Req = create_req(Method, Path, Headers, Body),
+    case ehttpc:request(ehttpc_pool:pick_worker(Pool, ClientID), Method, Req, RequestTimeout) of
+        {ok, StatusCode, _} when StatusCode >= 200 andalso StatusCode < 300 ->
+            emqx_rule_metrics:inc_actions_success(Id);
+        {ok, StatusCode, _, _} when StatusCode >= 200 andalso StatusCode < 300 ->
+            emqx_rule_metrics:inc_actions_success(Id);
+        {ok, StatusCode, _} ->
+            ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
+            emqx_rule_metrics:inc_actions_error(Id);
+        {ok, StatusCode, _, _} ->
+            ?LOG(warning, "[WebHook Action] HTTP request failed with status code: ~p", [StatusCode]),
+            emqx_rule_metrics:inc_actions_error(Id);
+        {error, Reason} ->
+            ?LOG(error, "[WebHook Action] HTTP request error: ~p", [Reason]),
+            emqx_rule_metrics:inc_actions_error(Id)
+    end.
 
 format_msg([], Data) ->
     emqx_json:encode(Data);
@@ -196,43 +256,27 @@ format_msg(Tokens, Data) ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
-create_req(get, Url, Headers, _, _) ->
-  {(Url), (Headers)};
+create_req(Method, Path, Headers, _Body)
+  when Method =:= get orelse Method =:= delete ->
+    {Path, Headers};
+create_req(_, Path, Headers, Body) ->
+  {Path, Headers, Body}.
 
-create_req(_, Url, Headers, ContentType, Body) ->
-  {(Url), (Headers), binary_to_list(ContentType), (Body)}.
-
-http_request(ActId, Url, Headers, Method, ContentType, Params) ->
-  logger:debug("[WebHook Action] ~s to ~s, headers: ~p, content-type: ~p, body: ~p", [Method, Url, Headers, ContentType, Params]),
-  case do_http_request(Method, create_req(Method, Url, Headers, ContentType, Params),
-    [{timeout, 5000}], [], 0) of
-    {ok, _} ->
-          emqx_rule_metrics:inc_actions_success(ActId);
-    {error, Reason} ->
-      logger:error("[WebHook Action] HTTP request error: ~p", [Reason]),
-      emqx_rule_metrics:inc_actions_error(ActId)
-  end.
-
-do_http_request(Method, Req, HTTPOpts, Opts, Times) ->
-    %% Resend request, when TCP closed by remotely
-    case httpc:request(Method, Req, HTTPOpts, Opts) of
-        {error, socket_closed_remotely} when Times < 3 ->
-            timer:sleep(trunc(math:pow(10, Times))),
-            do_http_request(Method, Req, HTTPOpts, Opts, Times+1);
-        Other -> Other
-    end.
-
-parse_action_params(Params = #{<<"url">> := Url}) ->
+parse_action_params(Params = #{<<"url">> := URL}) ->
     try
-        #{url => str(Url),
+        #{path := Path} = uri_string:parse(add_default_scheme(URL)),
+        #{method => method(maps:get(<<"method">>, Params, <<"POST">>)),
+          path => path(Path),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
-          method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
-          path => maps:get(<<"path">>, Params, <<>>)}
+          request_timeout => cuttlefish_duration:parse(str(maps:get(<<"request_timeout">>, Params, <<"5s">>))),
+          pool => maps:get(<<"pool">>, Params)}
     catch _:_ ->
         throw({invalid_params, Params})
     end.
+
+path(<<>>) -> <<"/">>;
+path(Path) -> Path.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
@@ -249,3 +293,86 @@ headers(Headers) when is_map(Headers) ->
 str(Str) when is_list(Str) -> Str;
 str(Atom) when is_atom(Atom) -> atom_to_list(Atom);
 str(Bin) when is_binary(Bin) -> binary_to_list(Bin).
+
+add_default_scheme(<<"http://", _/binary>> = URL) ->
+    URL;
+add_default_scheme(<<"https://", _/binary>> = URL) ->
+    URL;
+add_default_scheme(URL) ->
+    <<"http://", URL/binary>>.
+
+pool_opts(Params = #{<<"url">> := URL}, ResId) ->
+    #{host := Host0, scheme := Scheme} = URIMap = uri_string:parse(binary_to_list(add_default_scheme(URL))),
+    Port = maps:get(port, URIMap, case Scheme of
+                                      "https" -> 443;
+                                      _ -> 80
+                                  end),
+    Host = case inet:parse_address(Host0) of
+                       {ok, {_,_,_,_} = Addr} -> Addr;
+                       {ok, {_,_,_,_,_,_,_,_} = Addr} -> Addr;
+                       {error, einval} -> Host0
+                   end,
+    Inet = case Host of
+               {_,_,_,_} -> inet;
+               {_,_,_,_,_,_,_,_} -> inet6;
+               _ ->
+                   case inet:getaddr(Host, inet6) of
+                       {error, _} -> inet;
+                       {ok, _} -> inet6
+                   end
+           end,
+    PoolSize = maps:get(<<"pool_size">>, Params, 32),
+    ConnectTimeout = cuttlefish_duration:parse(str(maps:get(<<"connect_timeout">>, Params, <<"5s">>))),
+    SslOpts = get_ssl_options(Params, ResId, add_default_scheme(URL)),
+    [{host, Host},
+     {port, Port},
+     {pool_size, PoolSize},
+     {pool_type, hash},
+     {connect_timeout, ConnectTimeout},
+     {retry, 5},
+     {retry_timeout, 1000},
+     {transport_opts, [Inet] ++ SslOpts}].
+
+pool_name(ResId) ->
+    list_to_atom("webhook:" ++ str(ResId)).
+
+get_ssl_options(Config, ResId, <<"https://", _URL/binary>>) ->
+    [{transport, ssl}, {transport_opts, get_ssl_opts(Config, ResId)}];
+get_ssl_options(_Config, _ResId, _URL) ->
+    [].
+get_ssl_opts(Opts, ResId) ->
+    KeyFile = maps:get(<<"keyfile">>, Opts, undefined),
+    CertFile = maps:get(<<"certfile">>, Opts, undefined),
+    CAFile = maps:get(<<"cacertfile">>, Opts, undefined),
+    Filter = fun(Opts1) ->
+                     [{K, V} || {K, V} <- Opts1,
+                                    V =/= undefined,
+                                    V =/= <<>>,
+                                    V =/= "" ]
+             end,
+    Key = save_upload_file(KeyFile, ResId),
+    Cert = save_upload_file(CertFile, ResId),
+    CA = save_upload_file(CAFile, ResId),
+    Verify = case maps:get(<<"verify">>, Opts, false) of
+        false -> verify_none;
+        true -> verify_peer
+    end,
+    case Filter([{keyfile, Key}, {certfile, Cert}, {cacertfile, CA}]) of
+        [] -> [{verify, Verify}];
+        SslOpts ->
+            [{verify, Verify} | SslOpts]
+    end.
+
+save_upload_file(#{<<"file">> := <<>>, <<"filename">> := <<>>}, _ResId) -> "";
+save_upload_file(FilePath, _) when is_binary(FilePath) -> binary_to_list(FilePath);
+save_upload_file(#{<<"file">> := File, <<"filename">> := FileName}, ResId) ->
+     FullFilename = filename:join([emqx:get_env(data_dir), rules, ResId, FileName]),
+     ok = filelib:ensure_dir(FullFilename),
+     case file:write_file(FullFilename, File) of
+          ok ->
+               binary_to_list(FullFilename);
+          {error, Reason} ->
+               logger:error("Store file failed, ResId: ~p, ~0p", [ResId, Reason]),
+               error({ResId, store_file_fail})
+     end;
+save_upload_file(_, _) -> "".
