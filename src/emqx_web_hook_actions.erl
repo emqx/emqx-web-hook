@@ -264,9 +264,9 @@ create_req(_, Path, Headers, Body) ->
 
 parse_action_params(Params = #{<<"url">> := URL}) ->
     try
-        #{path := Path} = uri_string:parse(add_default_scheme(URL)),
+        URIMap = uri_string:parse(add_default_scheme(URL)),
         #{method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          path => path(Path),
+          path => path(URIMap),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
           request_timeout => cuttlefish_duration:parse(str(maps:get(<<"request_timeout">>, Params, <<"5s">>))),
@@ -275,8 +275,14 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
         throw({invalid_params, Params})
     end.
 
-path(<<>>) -> <<"/">>;
-path(Path) -> Path.
+path(#{path := <<>>, 'query' := Query}) ->
+    <<"?", Query/binary>>;
+path(#{path := Path, 'query' := Query}) ->
+    <<Path/binary, "?", Query/binary>>;
+path(#{path := <<>>}) ->
+    <<"/">>;
+path(#{path := Path}) ->
+    Path.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
