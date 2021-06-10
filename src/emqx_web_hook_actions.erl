@@ -337,7 +337,7 @@ pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
 
 get_ssl_options(Config, ResId, <<"https://", _URL/binary>>) ->
-    get_ssl_opts(Config, ResId)};
+    get_ssl_opts(Config, ResId);
 get_ssl_options(_Config, _ResId, _URL) ->
     [].
 
