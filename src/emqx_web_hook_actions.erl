@@ -323,13 +323,12 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
            end,
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = cuttlefish_duration:parse(str(maps:get(<<"connect_timeout">>, Params, <<"5s">>))),
-    TransportOpts0 =
+    TransportOpts =
         case Scheme =:= "https" of
-            true  -> [get_ssl_opts(Params, ResId)];
-            false -> []
+            true  -> [Inet | get_ssl_opts(Params, ResId)];
+            false -> [Inet]
         end,
-    TransportOpts = emqx_misc:ipv6_probe(TransportOpts0),
-    Opts = case Scheme =:= https  of
+    Opts = case Scheme =:= "https"  of
                true  -> [{transport_opts, TransportOpts}, {transport, ssl}];
                false -> [{transport_opts, TransportOpts}]
            end,
