@@ -2,6 +2,9 @@
 
 {VSN,
   [
+    {<<"4.2.[4-6]">>, [
+      {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []}
+    ]},
     {"4.2.3", [
       {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []},
       {load_module, emqx_web_hook_app, brutal_purge, soft_purge, []}
@@ -13,6 +16,9 @@
     {<<".*">>, []}
   ],
   [
+    {<<"4.2.[4-6]">>, [
+      {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []}
+    ]},
     {"4.2.3", [
       {load_module, emqx_web_hook_actions, brutal_purge, soft_purge, []},
       {load_module, emqx_web_hook_app, brutal_purge, soft_purge, []}
