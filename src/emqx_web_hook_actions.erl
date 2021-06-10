@@ -337,9 +337,10 @@ pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
 
 get_ssl_options(Config, ResId, <<"https://", _URL/binary>>) ->
-    [{transport, ssl}, {transport_opts, get_ssl_opts(Config, ResId)}];
+    get_ssl_opts(Config, ResId)};
 get_ssl_options(_Config, _ResId, _URL) ->
     [].
+
 get_ssl_opts(Opts, ResId) ->
     KeyFile = maps:get(<<"keyfile">>, Opts, undefined),
     CertFile = maps:get(<<"certfile">>, Opts, undefined),
