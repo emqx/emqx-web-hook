@@ -323,23 +323,26 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
            end,
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = cuttlefish_duration:parse(str(maps:get(<<"connect_timeout">>, Params, <<"5s">>))),
-    SslOpts = get_ssl_options(Params, ResId, add_default_scheme(URL)),
+    TransportOpts0 =
+        case Scheme =:= "https" of
+            true  -> [get_ssl_opts(Params, ResId)];
+            false -> []
+        end,
+    TransportOpts = emqx_misc:ipv6_probe(TransportOpts0),
+    Opts = case Scheme =:= https  of
+               true  -> [{transport_opts, TransportOpts}, {transport, ssl}];
+               false -> [{transport_opts, TransportOpts}]
+           end,
     [{host, Host},
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
      {connect_timeout, ConnectTimeout},
      {retry, 5},
-     {retry_timeout, 1000},
-     {transport_opts, [Inet] ++ SslOpts}].
+     {retry_timeout, 1000} | Opts].
 
 pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
-
-get_ssl_options(Config, ResId, <<"https://", _URL/binary>>) ->
-    get_ssl_opts(Config, ResId);
-get_ssl_options(_Config, _ResId, _URL) ->
-    [].
 
 get_ssl_opts(Opts, ResId) ->
     KeyFile = maps:get(<<"keyfile">>, Opts, undefined),
