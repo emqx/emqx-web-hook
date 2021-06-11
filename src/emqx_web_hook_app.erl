@@ -51,13 +51,12 @@ add_default_scheme(URL) ->
 translate_env() ->
     {ok, URL} = application:get_env(?APP, url),
     #{host := Host0,
-      path := Path0,
       scheme := Scheme} = URIMap = uri_string:parse(add_default_scheme(URL)),
     Port = maps:get(port, URIMap, case Scheme of
                                       "https" -> 443;
                                       _ -> 80
                                   end),
-    Path = path(Path0),
+    Path = path(URIMap),
     PoolSize = application:get_env(?APP, pool_size, 32),
     Host = case inet:parse_address(Host0) of
                        {ok, {_,_,_,_} = Addr} -> Addr;
@@ -109,9 +108,13 @@ translate_env() ->
     NHeaders = set_content_type(Headers),
     application:set_env(?APP, headers, NHeaders).
 
-path("") ->
+path(#{path := "", 'query' := Query}) ->
+    "?" ++ Query;
+path(#{path := Path, 'query' := Query}) ->
+    Path ++ "?" ++ Query;
+path(#{path := ""}) ->
     "/";
-path(Path) ->
+path(#{path := Path}) ->
     Path.
 
 set_content_type(Headers) ->
