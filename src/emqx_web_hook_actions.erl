@@ -264,9 +264,9 @@ create_req(_, Path, Headers, Body) ->
 
 parse_action_params(Params = #{<<"url">> := URL}) ->
     try
-        #{path := Path} = uri_string:parse(add_default_scheme(URL)),
+        URIMap = uri_string:parse(add_default_scheme(URL)),
         #{method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          path => path(Path),
+          path => path(URIMap),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
           request_timeout => cuttlefish_duration:parse(str(maps:get(<<"request_timeout">>, Params, <<"5s">>))),
@@ -275,8 +275,14 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
         throw({invalid_params, Params})
     end.
 
-path(<<>>) -> <<"/">>;
-path(Path) -> Path.
+path(#{path := <<>>, 'query' := Query}) ->
+    <<"?", Query/binary>>;
+path(#{path := Path, 'query' := Query}) ->
+    <<Path/binary, "?", Query/binary>>;
+path(#{path := <<>>}) ->
+    <<"/">>;
+path(#{path := Path}) ->
+    Path.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
@@ -323,23 +329,26 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
            end,
     PoolSize = maps:get(<<"pool_size">>, Params, 32),
     ConnectTimeout = cuttlefish_duration:parse(str(maps:get(<<"connect_timeout">>, Params, <<"5s">>))),
-    SslOpts = get_ssl_options(Params, ResId, add_default_scheme(URL)),
+    TransportOpts =
+        case Scheme =:= "https" of
+            true  -> [Inet | get_ssl_opts(Params, ResId)];
+            false -> [Inet]
+        end,
+    Opts = case Scheme =:= "https"  of
+               true  -> [{transport_opts, TransportOpts}, {transport, ssl}];
+               false -> [{transport_opts, TransportOpts}]
+           end,
     [{host, Host},
      {port, Port},
      {pool_size, PoolSize},
      {pool_type, hash},
      {connect_timeout, ConnectTimeout},
      {retry, 5},
-     {retry_timeout, 1000},
-     {transport_opts, [Inet] ++ SslOpts}].
+     {retry_timeout, 1000} | Opts].
 
 pool_name(ResId) ->
     list_to_atom("webhook:" ++ str(ResId)).
 
-get_ssl_options(Config, ResId, <<"https://", _URL/binary>>) ->
-    [{transport, ssl}, {transport_opts, get_ssl_opts(Config, ResId)}];
-get_ssl_options(_Config, _ResId, _URL) ->
-    [].
 get_ssl_opts(Opts, ResId) ->
     KeyFile = maps:get(<<"keyfile">>, Opts, undefined),
     CertFile = maps:get(<<"certfile">>, Opts, undefined),
