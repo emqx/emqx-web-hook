@@ -273,7 +273,7 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
 merge_path(CommonPath, <<>>) ->
     CommonPath;
 merge_path(CommonPath, Path0) ->
-    case emqx_http_lib:uri_parse(Path0) of
+    case uri_string:parse(Path0) of
         #{path := Path1, 'query' := Query} ->
             Path2 = filename:join(CommonPath, Path1),
             <<Path2/binary, "?", Query/binary>>;
