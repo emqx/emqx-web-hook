@@ -260,7 +260,7 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
     try
         #{path := CommonPath} = uri_string:parse(add_default_scheme(URL)),
         #{method => method(maps:get(<<"method">>, Params, <<"POST">>)),
-          path => path(filename:join(CommonPath, maps:get(<<"path">>, Params, <<>>))),
+          path => merge_path(CommonPath, maps:get(<<"path">>, Params, <<>>)),
           headers => headers(maps:get(<<"headers">>, Params, undefined)),
           content_type => maps:get(<<"content_type">>, Params, <<"application/json">>),
           payload_tmpl => maps:get(<<"payload_tmpl">>, Params, <<>>),
@@ -270,8 +270,16 @@ parse_action_params(Params = #{<<"url">> := URL}) ->
         throw({invalid_params, Params})
     end.
 
-path(<<>>) -> <<"/">>;
-path(Path) -> Path.
+merge_path(CommonPath, <<>>) ->
+    CommonPath;
+merge_path(CommonPath, Path0) ->
+    case uri_string:parse(Path0) of
+        #{path := Path1, 'query' := Query} ->
+            Path2 = filename:join(CommonPath, Path1),
+            <<Path2/binary, "?", Query/binary>>;
+        #{path := Path1} ->
+            filename:join(CommonPath, Path1)
+    end.
 
 method(GET) when GET == <<"GET">>; GET == <<"get">> -> get;
 method(POST) when POST == <<"POST">>; POST == <<"post">> -> post;
