@@ -5,7 +5,6 @@
   {datatype, string}
 ]}.
 
-
 {mapping, "web.hook.ssl.cafile", "emqx_web_hook.cafile", [
   {default, ""},
   {datatype, string}
@@ -34,6 +33,11 @@
 {mapping, "web.hook.pool_size", "emqx_web_hook.pool_size", [
   {default, 32},
   {datatype, integer}
+]}.
+
+{mapping, "web.hook.enable_pipelining", "emqx_web_hook.enable_pipelining", [
+  {default, true},
+  {datatype, {enum, [true, false]}}
 ]}.
 
 {mapping, "web.hook.rule.client.connect.$name", "emqx_web_hook.rules", [
