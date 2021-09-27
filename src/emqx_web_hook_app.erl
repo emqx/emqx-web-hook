@@ -57,6 +57,7 @@ translate_env() ->
                                       _ -> 80
                                   end),
     Path = path(URIMap),
+    {ok, EnablePipelining} = application:get_env(?APP, enable_pipelining),
     PoolSize = application:get_env(?APP, pool_size, 32),
     Host = case inet:parse_address(Host0) of
                        {ok, {_,_,_,_} = Addr} -> Addr;
@@ -97,6 +98,7 @@ translate_env() ->
                 end,
     PoolOpts = [{host, Host},
                 {port, Port},
+                {enable_pipelining, EnablePipelining},
                 {pool_size, PoolSize},
                 {pool_type, hash},
                 {connect_timeout, 5000},
