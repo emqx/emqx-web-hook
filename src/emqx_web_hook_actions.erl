@@ -347,7 +347,7 @@ pool_opts(Params = #{<<"url">> := URL}, ResId) ->
            end,
     [{host, Host},
      {port, Port},
-     {enable_pipelining, maps:get(<<"enable_pipelining">>, Params)},
+     {enable_pipelining, maps:get(<<"enable_pipelining">>, Params, false)},
      {pool_size, PoolSize},
      {pool_type, hash},
      {connect_timeout, ConnectTimeout},
