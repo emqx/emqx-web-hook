@@ -11,7 +11,7 @@
   [
     {<<"4.2.[0-7]">>, [
       {restart_application, emqx_web_hook},
-      {apply, {emqx_rule_engine, refresh_resource, [web_hook]}}
+      {apply, {emqx_rule_engine, refresh_resources, []}}
     ]},
     {<<".*">>, []}
   ]
